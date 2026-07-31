@@ -1,0 +1,31 @@
+# Oplyra database migrations (Flask-Migrate / Alembic)
+
+## Development / testing
+
+By default the app still runs `db.create_all()` for convenience.
+
+## Production
+
+`ProductionConfig.USE_ALEMBIC_ONLY = True` skips `create_all`. Apply schema with:
+
+```bash
+export FLASK_ENV=production
+export SECRET_KEY="$(python -c "import secrets; print(secrets.token_hex(32))")"
+export DATABASE_URL="mysql+pymysql://..."
+flask db upgrade
+```
+
+## Generating a new revision
+
+```bash
+# Compare models to an empty DB (avoid create_all during generate):
+set OPLYRA_SKIP_DB_INIT=1
+flask db migrate -m "describe change"
+flask db upgrade
+```
+
+## Existing databases that already have tables
+
+```bash
+flask db stamp head
+```

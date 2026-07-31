@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Select Property — Oplyra{% endblock %}
+
+{% block content %}
+<div class="integrations-page">
+    <div class="mb-4">
+        <nav aria-label="breadcrumb" class="mb-2">
+            <ol class="breadcrumb mb-0" style="font-size: 0.75rem;">
+                <li class="breadcrumb-item"><a href="{{ url_for('integrations.connected_apps') }}" class="text-secondary text-decoration-none">Connected Apps</a></li>
+                <li class="breadcrumb-item active text-white" aria-current="page">Select Property</li>
+            </ol>
+        </nav>
+        <h1 class="text-white mb-1 h4"><i class="bi bi-building text-indigo me-2"></i>Select Default Property</h1>
+        <p class="text-secondary mb-0 small">
+            Choose which {{ provider_label }} property to use for read-only sync.
+            {% if is_mock %}<span class="text-warning">(Mock mode)</span>{% endif %}
+        </p>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="glass-card p-4">
+                {% if options %}
+                <form method="POST" action="{{ url_for('integrations.select_property', connection_id=connection_id) if connection_id else url_for('integrations.select_property') }}" id="property-select-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    {% if connection_id %}
+                    <input type="hidden" name="connection_id" value="{{ connection_id }}">
+                    {% endif %}
+
+                    <label class="form-label-custom small mb-2" for="property_id">
+                        {% if provider == 'gsc' %}Search Console Site{% else %}GA4 Property{% endif %}
+                    </label>
+                    <select name="property_id" id="property_id" class="form-select form-control-custom mb-4" required>
+                        <option value="" disabled selected>Select a property…</option>
+                        {% for opt in options %}
+                        <option value="{{ opt.id }}">{{ opt.label }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="{{ url_for('integrations.connected_apps') }}" class="btn btn-secondary-custom btn-sm">Cancel</a>
+                        <button type="submit" class="btn btn-primary-custom btn-sm" id="property-save-btn">
+                            <i class="bi bi-check2-circle me-1"></i>Save Selection
+                        </button>
+                    </div>
+                </form>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-inbox text-secondary display-6 d-block mb-3"></i>
+                    <p class="text-secondary small mb-3">No properties found on this Google account.</p>
+                    <a href="{{ url_for('integrations.connected_apps') }}" class="btn btn-secondary-custom btn-sm">Back to Connected Apps</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('property-select-form')?.addEventListener('submit', function () {
+    var btn = document.getElementById('property-save-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
+    }
+});
+</script>
+{% endblock %}

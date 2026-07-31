@@ -1,0 +1,1102 @@
+{% extends "base.html" %}
+
+{% block title %}Campaign Management - Oplyra{% endblock %}
+
+{% block content %}
+{% set active_count = campaigns | selectattr('status', 'equalto', 'active') | list | length %}
+{% set completed_count = campaigns | selectattr('status', 'equalto', 'completed') | list | length %}
+{% set draft_count = campaigns | selectattr('status', 'equalto', 'draft') | list | length %}
+{% set paused_count = campaigns | selectattr('status', 'equalto', 'paused') | list | length %}
+{% set total_budget_display = format_money_totals(campaigns) %}
+
+<div class="campaigns-page">
+    <header class="page-header">
+        <div>
+            <h1 class="page-header-title"><i class="bi bi-megaphone-fill text-indigo me-2" aria-hidden="true"></i>Marketing Campaigns</h1>
+            <p class="page-header-subtitle">Create, organize, and track budgets, performance, and timelines across client campaigns.</p>
+        </div>
+        <button type="button" class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#createCampaignModal">
+            <i class="bi bi-plus-circle-fill me-1" aria-hidden="true"></i>New Campaign
+        </button>
+    </header>
+
+    <!-- Bento stat widgets -->
+    <div class="campaigns-stats-bento" aria-label="Campaign statistics">
+        <div class="campaign-stat-card accent-indigo">
+            <i class="bi bi-lightning-charge campaign-stat-icon" aria-hidden="true"></i>
+            <div class="campaign-stat-label">Active Campaigns</div>
+            <p class="campaign-stat-value" id="stat-active-count">{{ active_count }}</p>
+        </div>
+        <div class="campaign-stat-card accent-teal">
+            <i class="bi bi-wallet2 campaign-stat-icon" aria-hidden="true"></i>
+            <div class="campaign-stat-label">Total Budget</div>
+            <p class="campaign-stat-value stat-teal" id="stat-total-budget">{{ total_budget_display }}</p>
+        </div>
+        <div class="campaign-stat-card accent-success">
+            <i class="bi bi-check-circle campaign-stat-icon" aria-hidden="true"></i>
+            <div class="campaign-stat-label">Completed</div>
+            <p class="campaign-stat-value stat-success" id="stat-completed-count">{{ completed_count }}</p>
+        </div>
+        <div class="campaign-stat-card accent-muted">
+            <i class="bi bi-collection campaign-stat-icon" aria-hidden="true"></i>
+            <div class="campaign-stat-label">Total Campaigns</div>
+            <p class="campaign-stat-value" id="stat-total-count">{{ campaigns | length }}</p>
+        </div>
+    </div>
+
+    {% if campaigns %}
+    <!-- Filter bar + search -->
+    <div class="campaigns-toolbar" role="search">
+        <div class="campaigns-filter-group" role="group" aria-label="Filter campaigns by status">
+            <button type="button" class="campaign-filter-btn active" data-filter="all" aria-pressed="true">
+                All <span class="campaign-filter-count">{{ campaigns | length }}</span>
+            </button>
+            <button type="button" class="campaign-filter-btn" data-filter="active" aria-pressed="false">
+                Active <span class="campaign-filter-count">{{ active_count }}</span>
+            </button>
+            <button type="button" class="campaign-filter-btn" data-filter="draft" aria-pressed="false">
+                Draft <span class="campaign-filter-count">{{ draft_count }}</span>
+            </button>
+            <button type="button" class="campaign-filter-btn" data-filter="paused" aria-pressed="false">
+                Paused <span class="campaign-filter-count">{{ paused_count }}</span>
+            </button>
+            <button type="button" class="campaign-filter-btn" data-filter="completed" aria-pressed="false">
+                Completed <span class="campaign-filter-count">{{ completed_count }}</span>
+            </button>
+        </div>
+        <div class="campaigns-search">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input type="search" id="campaigns-search-input" class="form-control form-control-custom"
+                   placeholder="Search campaigns, clients…" aria-label="Search campaigns" autocomplete="off">
+        </div>
+    </div>
+
+    <!-- Campaign cards grid -->
+    <div class="campaigns-grid" id="campaigns-grid">
+        {% for campaign in campaigns %}
+        {% set progress = campaign.get_overall_progress() %}
+        <article class="campaign-card"
+                 id="campaign-card-{{ campaign.id }}"
+                 data-status="{{ campaign.status }}"
+                 data-name="{{ campaign.name | lower }}"
+                 data-client="{{ (campaign.project.name if campaign.project else 'no client') | lower }}"
+                 data-type="{{ campaign.type | replace('_', ' ') | lower }}">
+            <div class="campaign-card-header">
+                <div>
+                    <span class="campaign-type-badge">{{ campaign.type | replace('_', ' ') }}</span>
+                </div>
+                {% if campaign.status == 'active' %}
+                    <span class="campaign-status-badge status-active">Active</span>
+                {% elif campaign.status == 'completed' %}
+                    <span class="campaign-status-badge status-completed">Completed</span>
+                {% elif campaign.status == 'paused' %}
+                    <span class="campaign-status-badge status-paused">Paused</span>
+                {% else %}
+                    <span class="campaign-status-badge status-draft">Draft</span>
+                {% endif %}
+            </div>
+
+            <h2 class="campaign-card-title">{{ campaign.name }}</h2>
+
+            <div class="campaign-card-chips">
+                <span class="campaign-client-chip">
+                    <i class="bi bi-briefcase" aria-hidden="true"></i>
+                    {{ campaign.project.name if campaign.project else 'No Client' }}
+                </span>
+                <span class="campaign-client-chip">
+                    <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                    {{ campaign.current_stage }}
+                </span>
+            </div>
+
+            <p class="campaign-card-desc">{{ campaign.description or "No campaign description set." }}</p>
+
+            <div class="campaign-card-metrics">
+                <div class="campaign-metric-row">
+                    <span>Timeline</span>
+                    <span class="metric-value">{{ campaign.get_timeline_label() }}</span>
+                </div>
+                <div class="campaign-metric-row">
+                    <span>Budget</span>
+                    <span class="metric-value budget">{{ campaign.budget | money(campaign.currency) }}</span>
+                </div>
+                <div class="campaign-progress-wrap">
+                    <div class="campaign-progress-label">
+                        <span>Lifecycle progress</span>
+                        <span>{{ progress }}%</span>
+                    </div>
+                    <div class="campaign-progress-bar" role="progressbar" aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100" aria-label="Campaign progress">
+                        <div class="campaign-progress-fill" style="width: {{ progress }}%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="campaign-card-footer">
+                <a href="/content/campaigns/{{ campaign.id }}/workspace" class="btn btn-primary-custom btn-campaign-workspace">
+                    <i class="bi bi-folder2-open me-1" aria-hidden="true"></i>Workspace
+                </a>
+                <div class="campaign-card-actions">
+                    <button type="button" class="campaign-action-btn campaign-edit-btn"
+                            aria-label="Edit {{ campaign.name }}"
+                            data-campaign='{{ {
+                                "id": campaign.id,
+                                "name": campaign.name,
+                                "type": campaign.type,
+                                "description": campaign.description or "",
+                                "budget": campaign.budget | string,
+                                "currency": campaign.currency or default_currency,
+                                "status": campaign.status,
+                                "start": campaign.start_date.strftime("%Y-%m-%d") if campaign.start_date else "",
+                                "end": campaign.end_date.strftime("%Y-%m-%d") if campaign.end_date else "",
+                                "project_id": campaign.project_id or ""
+                            } | tojson }}'>
+                        <i class="bi bi-pencil" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="campaign-action-btn action-danger"
+                            aria-label="Delete {{ campaign.name }}"
+                            onclick="deleteCampaign({{ campaign.id }})">
+                        <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </footer>
+        </article>
+        {% endfor %}
+    </div>
+
+    <!-- Filtered empty state (only when campaigns exist) -->
+    <div class="glass-card empty-state d-none" id="campaigns-filter-empty" role="status">
+        <i class="bi bi-funnel empty-state-icon" aria-hidden="true"></i>
+        <h3 class="empty-state-title">No campaigns match your filters</h3>
+        <p class="empty-state-text">Try adjusting the status filter or clearing your search query.</p>
+        <button type="button" class="btn btn-secondary-custom btn-sm" id="campaigns-clear-filters">Clear filters</button>
+    </div>
+    {% else %}
+    <div class="glass-card empty-state" id="campaigns-initial-empty">
+        {% include 'partials/_empty_state_brand.html' %}
+        <i class="bi bi-megaphone empty-state-icon" aria-hidden="true"></i>
+        <h3 class="empty-state-title">No campaigns yet</h3>
+        <p class="empty-state-text">Launch your first marketing campaign to track budgets, assets, and lifecycle checklists.</p>
+        <button type="button" class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#createCampaignModal">
+            <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Create Campaign
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal: Create Campaign (Smart Creation Wizard) -->
+<div class="modal fade" id="createCampaignModal" tabindex="-1" aria-labelledby="createCampaignModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content modal-content-custom campaign-wizard-modal">
+            <div class="modal-header modal-header-custom campaign-wizard-header">
+                <h5 class="modal-title campaign-wizard-modal-title" id="createCampaignModalLabel">
+                    <i class="bi bi-magic" aria-hidden="true"></i>
+                    <span>Smart Campaign Creation Wizard</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="campaign-wizard-progress-section">
+                <div class="campaign-wizard-steps">
+                    <div class="campaign-wizard-track" aria-hidden="true"></div>
+                    <div class="campaign-wizard-progress" id="wizard-progress-line" aria-hidden="true"></div>
+                    {% for step_num in range(1, 7) %}
+                    <div class="campaign-wizard-step-dot" id="step-indicator-{{ step_num }}">{{ step_num }}</div>
+                    {% endfor %}
+                </div>
+                <div class="campaign-wizard-labels" aria-hidden="true">
+                    <span>Playbook</span><span>Goal</span><span>Platforms</span>
+                    <span>Budget</span><span>Timeline</span><span>Generate</span>
+                </div>
+            </div>
+
+            <form id="wizardCampaignForm" onsubmit="handleWizardSubmit(event)">
+                <div class="modal-body campaign-wizard-body">
+
+                    <div class="wizard-step-content" id="step-content-1">
+                        <h4 class="campaign-wizard-step-title">Step 1: Choose a Campaign Playbook</h4>
+                        <p class="campaign-wizard-step-desc">Select an industry blueprint to seed tasks, checklists, and templates.</p>
+                        <input type="hidden" id="wizard-playbook" value="facebook_lead_gen">
+                        <div class="campaign-wizard-card-grid campaign-wizard-card-grid-3">
+                            {% set playbooks = [
+                                ('facebook_lead_gen', 'bi-facebook', 'Facebook Lead Gen', 'Facebook Lead forms template.'),
+                                ('google_search', 'bi-google', 'Google Search Ads', 'Google PPC Search bids strategy.'),
+                                ('seo_campaign', 'bi-search', 'SEO Campaign', 'Organic visibility optimization template.'),
+                                ('local_business', 'bi-geo-alt', 'Local Business', 'Radius target map citations.'),
+                                ('ecommerce', 'bi-cart', 'E-commerce', 'Product catalog conversions.'),
+                                ('restaurant', 'bi-egg-fried', 'Restaurant', 'Dinner reservations boost.'),
+                                ('clinic', 'bi-heart', 'Clinic Campaign', 'Local doctor intake bookings.'),
+                                ('gym', 'bi-lightning', 'Gym Campaign', 'Trial passes redemptions.'),
+                                ('furniture_store', 'bi-house', 'Furniture Store', 'Showroom booking leads.')
+                            ] %}
+                            {% for key, icon, title, desc in playbooks %}
+                            <div class="playbook-card campaign-wizard-card{% if key == 'facebook_lead_gen' %} active-card{% endif %}"
+                                 onclick="selectPlaybook('{{ key }}', this)" tabindex="0" role="button"
+                                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectPlaybook('{{ key }}', this);}">
+                                <span class="campaign-wizard-card-icon" aria-hidden="true"><i class="bi {{ icon }}"></i></span>
+                                <span class="campaign-wizard-card-title">{{ title }}</span>
+                                <span class="campaign-wizard-card-desc">{{ desc }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="wizard-step-content d-none" id="step-content-2">
+                        <h4 class="campaign-wizard-step-title">Step 2: Define your Campaign Goal</h4>
+                        <p class="campaign-wizard-step-desc">Align the decision models to your primary business objective.</p>
+                        <input type="hidden" id="wizard-goal" value="Lead Generation">
+                        <div class="campaign-wizard-card-grid campaign-wizard-card-grid-2">
+                            {% set goals = [
+                                ('Lead Generation', 'bi-people', 'Generate contact form responses and leads.'),
+                                ('Sales Conversion', 'bi-cash-stack', 'Increase storefront purchases and catalog conversions.'),
+                                ('Organic Traffic', 'bi-graph-up-arrow', 'Improve organic rankings and link clicks.'),
+                                ('Brand Awareness', 'bi-eye', 'Target ad coverage and localized impressions.')
+                            ] %}
+                            {% for goal, icon, desc in goals %}
+                            <div class="goal-card campaign-wizard-card{% if goal == 'Lead Generation' %} active-card{% endif %}"
+                                 onclick="selectGoal('{{ goal }}', this)" tabindex="0" role="button"
+                                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectGoal('{{ goal }}', this);}">
+                                <span class="campaign-wizard-card-title">
+                                    <i class="bi {{ icon }}" aria-hidden="true"></i>
+                                    <span>{{ goal }}</span>
+                                </span>
+                                <span class="campaign-wizard-card-desc">{{ desc }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="wizard-step-content d-none" id="step-content-3">
+                        <h4 class="campaign-wizard-step-title">Step 3: Select Platforms</h4>
+                        <p class="campaign-wizard-step-desc">Choose platforms to generate tasks and tracking checks for.</p>
+                        <div class="campaign-wizard-card-grid campaign-wizard-card-grid-3">
+                            {% for platform, icon, label in [('facebook', 'bi-facebook', 'Facebook Ads'), ('google', 'bi-google', 'Google Ads'), ('seo', 'bi-search', 'SEO')] %}
+                            <label class="platform-checkbox-card campaign-wizard-card campaign-wizard-card-centered">
+                                <input type="checkbox" name="wizard-platform" value="{{ platform }}" class="d-none" onchange="togglePlatformCard(this)">
+                                <span class="campaign-wizard-card-icon" aria-hidden="true"><i class="bi {{ icon }}"></i></span>
+                                <span class="campaign-wizard-card-title">{{ label }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="wizard-step-content d-none" id="step-content-4">
+                        <h4 class="campaign-wizard-step-title">Step 4: Campaign Budget</h4>
+                        <p class="campaign-wizard-step-desc">Specify planned ad spending limits for tracking warnings.</p>
+                        <div class="campaign-wizard-panel glass-card campaign-wizard-budget-panel">
+                            <label for="wizard-budget" class="form-label-custom campaign-wizard-field-label" id="wizard-budget-label">Target Monthly Spend (₹)</label>
+                            <div class="campaign-budget-input-row" role="group" aria-labelledby="wizard-budget-label">
+                                <div class="campaign-currency-select-wrap">
+                                    <span class="campaign-currency-symbol" id="wizard-budget-symbol" aria-hidden="true">₹</span>
+                                    <select id="wizard-budget-currency" class="form-select form-control-custom campaign-currency-select" aria-label="Budget currency">
+                                        {% for cur in selectable_currencies() %}
+                                        <option value="{{ cur.code }}" {% if cur.code == default_currency %}selected{% endif %}>
+                                            {{ cur.code }} ({{ cur.symbol }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <input type="number" id="wizard-budget" class="form-control form-control-custom campaign-wizard-budget-input fw-bold"
+                                       placeholder="100000.00" step="0.01" min="1" inputmode="decimal"
+                                       aria-describedby="wizard-budget-preview">
+                            </div>
+                            <p class="campaign-budget-preview" id="wizard-budget-preview" data-empty="true">Preview: ₹0.00</p>
+                        </div>
+                    </div>
+
+                    <div class="wizard-step-content d-none" id="step-content-5">
+                        <h4 class="campaign-wizard-step-title">Step 5: Set Campaign Timeline</h4>
+                        <p class="campaign-wizard-step-desc">Choose when the campaign starts and how long it should run.</p>
+
+                        <div class="campaign-wizard-form-stack">
+                            <div>
+                                <label for="wizard-start-date" class="form-label-custom">Start Date <span class="text-danger" aria-hidden="true">*</span></label>
+                                <input type="date" id="wizard-start-date" class="form-control form-control-custom" required aria-required="true">
+                            </div>
+
+                            <div>
+                                <span class="form-label-custom d-block mb-2" id="wizard-duration-label">Campaign Duration</span>
+                                <input type="hidden" id="wizard-duration-type" value="fixed">
+                                <div class="campaign-duration-grid" role="radiogroup" aria-labelledby="wizard-duration-label">
+                                    <button type="button" class="campaign-duration-card active-card" data-duration="fixed" onclick="selectDurationType('fixed', this)" aria-pressed="true">
+                                        <span class="campaign-duration-card-icon" aria-hidden="true"><i class="bi bi-calendar-range"></i></span>
+                                        <span class="campaign-duration-card-title">Fixed Duration</span>
+                                        <span class="campaign-duration-card-desc">Runs between a clear start and end date</span>
+                                    </button>
+                                    <button type="button" class="campaign-duration-card" data-duration="ongoing" onclick="selectDurationType('ongoing', this)" aria-pressed="false">
+                                        <span class="campaign-duration-card-icon" aria-hidden="true"><i class="bi bi-infinity"></i></span>
+                                        <span class="campaign-duration-card-title">Ongoing / Evergreen</span>
+                                        <span class="campaign-duration-card-desc">No end date — runs until you stop it</span>
+                                    </button>
+                                    <button type="button" class="campaign-duration-card" data-duration="recurring" onclick="selectDurationType('recurring', this)" aria-pressed="false">
+                                        <span class="campaign-duration-card-icon" aria-hidden="true"><i class="bi bi-arrow-repeat"></i></span>
+                                        <span class="campaign-duration-card-title">Recurring</span>
+                                        <span class="campaign-duration-card-desc">Repeats on a set cadence</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="wizard-recurrence-block" class="d-none">
+                                <label for="wizard-recurrence" class="form-label-custom">Recurrence <span class="text-danger" aria-hidden="true">*</span></label>
+                                <select id="wizard-recurrence" class="form-select form-control-custom" aria-label="Recurrence frequency">
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly" selected>Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                    <option value="quarterly">Quarterly</option>
+                                    <option value="yearly">Yearly</option>
+                                </select>
+                            </div>
+
+                            <div id="wizard-optional-end-toggle-wrap" class="campaign-optional-end-row d-none">
+                                <label class="campaign-optional-end-toggle">
+                                    <input type="checkbox" id="wizard-optional-end-toggle" class="form-check-input m-0">
+                                    <span>Add an optional end date</span>
+                                </label>
+                            </div>
+
+                            <div id="wizard-end-date-block">
+                                <label for="wizard-end-date" class="form-label-custom" id="wizard-end-date-label">End Date <span class="text-danger" aria-hidden="true">*</span></label>
+                                <input type="date" id="wizard-end-date" class="form-control form-control-custom" aria-required="true">
+                                <p class="campaign-timeline-hint" id="wizard-end-date-hint">Required for fixed-duration campaigns.</p>
+                            </div>
+
+                            <div id="wizard-ongoing-hint" class="campaign-timeline-info d-none" role="status">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                <span>This campaign will have no end date and stay active until you pause or complete it.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="wizard-step-content d-none" id="step-content-6">
+                        <h4 class="campaign-wizard-step-title">Step 6: Name &amp; Workflow Automation</h4>
+                        <p class="campaign-wizard-step-desc">Name your campaign and optionally import structures from existing campaigns.</p>
+                        <div class="campaign-wizard-form-stack">
+                            <div>
+                                <label for="wizard-project-id" class="form-label-custom">Client *</label>
+                                <select id="wizard-project-id" class="form-select form-control-custom" required>
+                                    <option value="" disabled {% if not selected_project_id %}selected{% endif %}>Select client</option>
+                                    {% for project in all_projects %}
+                                    <option value="{{ project.id }}" {% if selected_project_id == project.id %}selected{% endif %}>{{ project.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label for="wizard-name" class="form-label-custom">Campaign Name *</label>
+                                <input type="text" id="wizard-name" class="form-control form-control-custom" required placeholder="e.g. Q4 Growth Sprint">
+                            </div>
+                            <div class="campaign-wizard-budget-summary" id="wizard-budget-summary" aria-live="polite">
+                                <span class="campaign-wizard-budget-summary-label">Budget</span>
+                                <span class="campaign-wizard-budget-summary-value" id="wizard-budget-summary-value">—</span>
+                            </div>
+                            <div class="campaign-wizard-budget-summary" id="wizard-timeline-summary" aria-live="polite">
+                                <span class="campaign-wizard-budget-summary-label">Timeline</span>
+                                <span class="campaign-wizard-budget-summary-value" id="wizard-timeline-summary-value">—</span>
+                            </div>
+                            <div class="campaign-wizard-import-block">
+                                <label for="wizard-import" class="form-label-custom">
+                                    <i class="bi bi-copy" aria-hidden="true"></i>
+                                    <span>Import Structures</span>
+                                </label>
+                                <span class="campaign-wizard-import-hint">Optionally copy task lists, templates, and note briefs from an existing campaign.</span>
+                                <select id="wizard-import" class="form-select form-control-custom">
+                                    <option value="">Do Not Import (Create Clean Playbook)</option>
+                                    {% for camp in campaigns %}
+                                    <option value="{{ camp.id }}">{{ camp.name }} ({{ camp.project.name if camp.project else 'Workspace' }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer modal-footer-custom campaign-wizard-footer">
+                    <button type="button" class="btn btn-secondary-custom campaign-wizard-nav-btn" id="wizard-prev-btn" onclick="prevWizardStep()" disabled>Back</button>
+                    <button type="button" class="btn btn-primary-custom campaign-wizard-nav-btn" id="wizard-next-btn" onclick="nextWizardStep()">Next</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Edit Campaign -->
+<div class="modal fade" id="editCampaignModal" tabindex="-1" aria-labelledby="editCampaignModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-custom">
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="editCampaignModalLabel"><i class="bi bi-pencil-square text-indigo me-2" aria-hidden="true"></i>Edit Campaign Settings</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form onsubmit="handleEditCampaign(event)">
+                <input type="hidden" id="edit-campaign-id">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="edit-campaign-project" class="form-label-custom">Client Workspace *</label>
+                        <select id="edit-campaign-project" class="form-select form-control-custom" required>
+                            {% for project in all_projects %}
+                            <option value="{{ project.id }}">{{ project.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-campaign-name" class="form-label-custom">Campaign Name *</label>
+                        <input type="text" id="edit-campaign-name" class="form-control form-control-custom" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label for="edit-campaign-type" class="form-label-custom">Type</label>
+                            <select id="edit-campaign-type" class="form-select form-control-custom">
+                                <option value="affiliate">Affiliate Promotion</option>
+                                <option value="product_launch">Product Launch</option>
+                                <option value="email">Email Sequence</option>
+                                <option value="social_campaign">Social Campaign</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label for="edit-campaign-budget" class="form-label-custom" id="edit-budget-label">Budget</label>
+                            <div class="campaign-budget-input-row campaign-budget-input-row-compact">
+                                <select id="edit-campaign-currency" class="form-select form-control-custom campaign-currency-select" aria-label="Budget currency">
+                                    {% for cur in selectable_currencies() %}
+                                    <option value="{{ cur.code }}">{{ cur.code }} ({{ cur.symbol }})</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="campaign-budget-amount-wrap">
+                                    <span class="campaign-currency-symbol" id="edit-budget-symbol" aria-hidden="true">₹</span>
+                                    <input type="number" step="0.01" id="edit-campaign-budget" class="form-control form-control-custom" min="0" inputmode="decimal">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label for="edit-campaign-start" class="form-label-custom">Start Date</label>
+                            <input type="date" id="edit-campaign-start" class="form-control form-control-custom">
+                        </div>
+                        <div class="col-6">
+                            <label for="edit-campaign-end" class="form-label-custom">End Date</label>
+                            <input type="date" id="edit-campaign-end" class="form-control form-control-custom">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-campaign-status" class="form-label-custom">Campaign Status</label>
+                        <select id="edit-campaign-status" class="form-select form-control-custom">
+                            <option value="draft">Draft</option>
+                            <option value="active">Active</option>
+                            <option value="paused">Paused</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-campaign-desc" class="form-label-custom">Description (Optional)</label>
+                        <textarea id="edit-campaign-desc" rows="3" class="form-control form-control-custom"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer modal-footer-custom">
+                    <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom" id="edit-campaign-submit">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/currency.js') }}"></script>
+<script>
+(function() {
+    'use strict';
+
+    let activeStep = 1;
+    let activeFilter = 'all';
+    let searchQuery = '';
+    let wizardBudgetField = null;
+    let editBudgetField = null;
+
+    const PLAYBOOK_PLATFORMS = {
+        facebook_lead_gen: ['facebook'],
+        google_search: ['google'],
+        seo_campaign: ['seo'],
+        local_business: ['facebook', 'google'],
+        ecommerce: ['facebook', 'google'],
+        restaurant: ['facebook'],
+        clinic: ['facebook', 'google'],
+        gym: ['facebook'],
+        furniture_store: ['facebook', 'google']
+    };
+
+    function notify(msg, type) {
+        if (window.showToast) showToast(msg, type || 'info');
+        else alert(msg);
+    }
+
+    function updateWizardBudgetSummary() {
+        const summaryEl = document.getElementById('wizard-budget-summary-value');
+        if (!summaryEl || !window.CampaignCurrency) return;
+        const amountInput = document.getElementById('wizard-budget');
+        const currencySelect = document.getElementById('wizard-budget-currency');
+        const amount = parseFloat(amountInput && amountInput.value);
+        const code = CampaignCurrency.normalize(currencySelect && currencySelect.value);
+        if (!amountInput || !amountInput.value || isNaN(amount) || amount <= 0) {
+            summaryEl.textContent = '—';
+            return;
+        }
+        summaryEl.textContent = CampaignCurrency.formatMoney(amount, code);
+    }
+
+    function setWizardLoading(loading) {
+        const nextBtn = document.getElementById('wizard-next-btn');
+        const prevBtn = document.getElementById('wizard-prev-btn');
+        if (!nextBtn) return;
+        if (loading) {
+            nextBtn.disabled = true;
+            nextBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Generating…';
+            if (prevBtn) prevBtn.disabled = true;
+        } else {
+            nextBtn.disabled = false;
+            if (prevBtn) prevBtn.disabled = activeStep === 1;
+            nextBtn.textContent = activeStep === 6 ? 'Generate Campaign' : 'Next';
+        }
+    }
+
+    function showStep(stepNum) {
+        document.querySelectorAll('.wizard-step-content').forEach(el => el.classList.add('d-none'));
+        const activeContent = document.getElementById('step-content-' + stepNum);
+        if (activeContent) activeContent.classList.remove('d-none');
+
+        for (let i = 1; i <= 6; i++) {
+            const ind = document.getElementById('step-indicator-' + i);
+            if (!ind) continue;
+            ind.classList.remove('is-done', 'is-active');
+            if (i < stepNum) ind.classList.add('is-done');
+            else if (i === stepNum) ind.classList.add('is-active');
+        }
+
+        const line = document.getElementById('wizard-progress-line');
+        if (line) line.style.width = ((stepNum - 1) / 5 * 100) + '%';
+
+        const prevBtn = document.getElementById('wizard-prev-btn');
+        const nextBtn = document.getElementById('wizard-next-btn');
+        if (prevBtn) prevBtn.disabled = stepNum === 1;
+        if (nextBtn) {
+            nextBtn.textContent = stepNum === 6 ? 'Generate Campaign' : 'Next';
+            nextBtn.onclick = stepNum === 6
+                ? function() { document.getElementById('wizardCampaignForm').requestSubmit(); }
+                : nextWizardStep;
+        }
+        if (stepNum === 6) {
+            updateWizardBudgetSummary();
+            updateWizardTimelineSummary();
+        }
+    }
+
+    function getDurationType() {
+        const el = document.getElementById('wizard-duration-type');
+        return (el && el.value) || 'fixed';
+    }
+
+    function formatDateLabel(isoDate) {
+        if (!isoDate) return '—';
+        const d = new Date(isoDate + 'T00:00:00');
+        if (isNaN(d.getTime())) return isoDate;
+        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function updateWizardTimelineSummary() {
+        const summaryEl = document.getElementById('wizard-timeline-summary-value');
+        if (!summaryEl) return;
+        const start = document.getElementById('wizard-start-date').value;
+        const end = document.getElementById('wizard-end-date').value;
+        const duration = getDurationType();
+        const recurrence = document.getElementById('wizard-recurrence').value;
+        if (!start) {
+            summaryEl.textContent = '—';
+            return;
+        }
+        const startLabel = formatDateLabel(start);
+        if (duration === 'ongoing') {
+            summaryEl.textContent = startLabel + ' – Ongoing';
+        } else if (duration === 'recurring') {
+            const cadence = (recurrence || 'weekly').charAt(0).toUpperCase() + (recurrence || 'weekly').slice(1);
+            if (document.getElementById('wizard-optional-end-toggle').checked && end) {
+                summaryEl.textContent = startLabel + ' – ' + formatDateLabel(end) + ' · ' + cadence;
+            } else {
+                summaryEl.textContent = startLabel + ' – Recurring (' + cadence + ')';
+            }
+        } else {
+            summaryEl.textContent = startLabel + ' – ' + (end ? formatDateLabel(end) : '—');
+        }
+    }
+
+    function syncDurationUI() {
+        const duration = getDurationType();
+        const endBlock = document.getElementById('wizard-end-date-block');
+        const endInput = document.getElementById('wizard-end-date');
+        const endLabel = document.getElementById('wizard-end-date-label');
+        const endHint = document.getElementById('wizard-end-date-hint');
+        const recurrenceBlock = document.getElementById('wizard-recurrence-block');
+        const ongoingHint = document.getElementById('wizard-ongoing-hint');
+        const optionalToggleWrap = document.getElementById('wizard-optional-end-toggle-wrap');
+        const optionalToggle = document.getElementById('wizard-optional-end-toggle');
+
+        if (recurrenceBlock) recurrenceBlock.classList.toggle('d-none', duration !== 'recurring');
+        if (ongoingHint) ongoingHint.classList.toggle('d-none', duration !== 'ongoing');
+        if (optionalToggleWrap) optionalToggleWrap.classList.toggle('d-none', duration !== 'recurring');
+
+        if (duration === 'ongoing') {
+            if (endBlock) endBlock.classList.add('d-none');
+            if (optionalToggle) optionalToggle.checked = false;
+            if (endInput) {
+                endInput.value = '';
+                endInput.removeAttribute('required');
+                endInput.setAttribute('aria-required', 'false');
+            }
+        } else if (duration === 'recurring') {
+            const showEnd = !!(optionalToggle && optionalToggle.checked);
+            if (endBlock) endBlock.classList.toggle('d-none', !showEnd);
+            if (endLabel) {
+                endLabel.innerHTML = 'End Date <span class="text-secondary fw-normal">(optional)</span>';
+            }
+            if (endHint) {
+                endHint.textContent = 'Stops the recurring campaign after this date.';
+            }
+            if (endInput) {
+                if (!showEnd) endInput.value = '';
+                endInput.removeAttribute('required');
+                endInput.setAttribute('aria-required', 'false');
+            }
+        } else {
+            if (endBlock) endBlock.classList.remove('d-none');
+            if (endInput) {
+                endInput.setAttribute('required', 'required');
+                endInput.setAttribute('aria-required', 'true');
+            }
+            if (endLabel) {
+                endLabel.innerHTML = 'End Date <span class="text-danger" aria-hidden="true">*</span>';
+            }
+            if (endHint) {
+                endHint.textContent = 'Required for fixed-duration campaigns.';
+            }
+            if (optionalToggle) optionalToggle.checked = false;
+        }
+        updateWizardTimelineSummary();
+    }
+
+    window.selectDurationType = function(type, el) {
+        const input = document.getElementById('wizard-duration-type');
+        if (input) input.value = type;
+        document.querySelectorAll('.campaign-duration-card').forEach(card => {
+            const active = card === el;
+            card.classList.toggle('active-card', active);
+            card.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        syncDurationUI();
+    };
+
+    function validateTimelineStep() {
+        const start = document.getElementById('wizard-start-date').value;
+        const end = document.getElementById('wizard-end-date').value;
+        const duration = getDurationType();
+        const recurrence = document.getElementById('wizard-recurrence').value;
+        const optionalEnd = document.getElementById('wizard-optional-end-toggle');
+
+        if (!start) {
+            notify('Please select a start date for the campaign.', 'warning');
+            document.getElementById('wizard-start-date').focus();
+            return false;
+        }
+
+        if (duration === 'fixed') {
+            if (!end) {
+                notify('Please select an end date for a fixed-duration campaign.', 'warning');
+                document.getElementById('wizard-end-date').focus();
+                return false;
+            }
+            if (end < start) {
+                notify('End date must be on or after the start date.', 'warning');
+                document.getElementById('wizard-end-date').focus();
+                return false;
+            }
+        } else if (duration === 'recurring') {
+            if (!recurrence) {
+                notify('Please select a recurrence frequency.', 'warning');
+                return false;
+            }
+            if (optionalEnd && optionalEnd.checked) {
+                if (!end) {
+                    notify('Please select an end date, or turn off “Add end date”.', 'warning');
+                    document.getElementById('wizard-end-date').focus();
+                    return false;
+                }
+                if (end < start) {
+                    notify('End date must be on or after the start date.', 'warning');
+                    document.getElementById('wizard-end-date').focus();
+                    return false;
+                }
+            }
+        }
+        updateWizardTimelineSummary();
+        return true;
+    }
+
+    function validateCurrentStep() {
+        if (activeStep === 1 && !document.getElementById('wizard-playbook').value) {
+            notify('Please select a playbook to continue.', 'warning');
+            return false;
+        }
+        if (activeStep === 3 && document.querySelectorAll('input[name="wizard-platform"]:checked').length === 0) {
+            notify('Please select at least one platform.', 'warning');
+            return false;
+        }
+        if (activeStep === 4) {
+            const budgetVal = document.getElementById('wizard-budget').value;
+            const budget = parseFloat(budgetVal);
+            const currencySelect = document.getElementById('wizard-budget-currency');
+            const code = window.CampaignCurrency
+                ? CampaignCurrency.normalize(currencySelect && currencySelect.value)
+                : 'INR';
+            const symbol = window.CampaignCurrency ? CampaignCurrency.getSymbol(code) : '₹';
+            if (!budgetVal || isNaN(budget) || budget <= 0) {
+                notify('Please enter a valid campaign budget in ' + code + ' (' + symbol + ').', 'warning');
+                return false;
+            }
+            updateWizardBudgetSummary();
+        }
+        if (activeStep === 5) {
+            return validateTimelineStep();
+        }
+        if (activeStep === 6) {
+            const name = document.getElementById('wizard-name').value.trim();
+            const projectId = document.getElementById('wizard-project-id').value;
+            if (!name || !projectId) {
+                notify('Campaign name and client portfolio are required.', 'warning');
+                return false;
+            }
+            if (!validateTimelineStep()) return false;
+        }
+        return true;
+    }
+
+    window.nextWizardStep = function() {
+        if (!validateCurrentStep()) return;
+        if (activeStep < 6) { activeStep++; showStep(activeStep); }
+    };
+
+    window.prevWizardStep = function() {
+        if (activeStep > 1) { activeStep--; showStep(activeStep); }
+    };
+
+    window.selectPlaybook = function(key, el) {
+        document.getElementById('wizard-playbook').value = key;
+        document.querySelectorAll('.playbook-card').forEach(c => c.classList.remove('active-card'));
+        el.classList.add('active-card');
+        applyPlaybookPlatforms(PLAYBOOK_PLATFORMS[key] || ['facebook']);
+    };
+
+    window.selectGoal = function(goal, el) {
+        document.getElementById('wizard-goal').value = goal;
+        document.querySelectorAll('.goal-card').forEach(c => c.classList.remove('active-card'));
+        el.classList.add('active-card');
+    };
+
+    window.togglePlatformCard = function(checkbox) {
+        const card = checkbox.closest('.platform-checkbox-card');
+        if (checkbox.checked) card.classList.add('active-card');
+        else card.classList.remove('active-card');
+    };
+
+    function applyPlaybookPlatforms(platformKeys) {
+        document.querySelectorAll('input[name="wizard-platform"]').forEach(cb => {
+            cb.checked = platformKeys.includes(cb.value);
+            togglePlatformCard(cb);
+        });
+    }
+
+    window.handleWizardSubmit = function(event) {
+        event.preventDefault();
+        if (!validateCurrentStep()) return;
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const platforms = Array.from(document.querySelectorAll('input[name="wizard-platform"]:checked')).map(cb => cb.value);
+        const name = document.getElementById('wizard-name').value.trim();
+        const project_id = document.getElementById('wizard-project-id').value;
+
+        if (!name || !project_id) { notify('Campaign name and client portfolio are required.', 'warning'); return; }
+        if (platforms.length === 0) { notify('Please select at least one platform.', 'warning'); return; }
+
+        setWizardLoading(true);
+
+        fetch('/content/campaigns/wizard', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+            body: JSON.stringify({
+                name,
+                project_id,
+                playbook: document.getElementById('wizard-playbook').value,
+                goal: document.getElementById('wizard-goal').value,
+                platforms,
+                budget: document.getElementById('wizard-budget').value,
+                currency: document.getElementById('wizard-budget-currency').value,
+                start_date: document.getElementById('wizard-start-date').value,
+                end_date: (function() {
+                    const duration = getDurationType();
+                    if (duration === 'ongoing') return '';
+                    if (duration === 'recurring' && !document.getElementById('wizard-optional-end-toggle').checked) return '';
+                    return document.getElementById('wizard-end-date').value;
+                })(),
+                duration_type: getDurationType(),
+                recurrence: getDurationType() === 'recurring'
+                    ? document.getElementById('wizard-recurrence').value
+                    : null,
+                import_campaign_id: document.getElementById('wizard-import').value
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                notify('Campaign created successfully.', 'success');
+                window.location.reload();
+            } else {
+                setWizardLoading(false);
+                notify('Failed to generate campaign: ' + (data.error || 'Unknown error'), 'danger');
+            }
+        })
+        .catch(() => {
+            setWizardLoading(false);
+            notify('An error occurred while creating the campaign.', 'danger');
+        });
+    };
+
+    document.querySelectorAll('.campaign-edit-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            try {
+                const c = JSON.parse(this.getAttribute('data-campaign'));
+                document.getElementById('edit-campaign-id').value = c.id;
+                document.getElementById('edit-campaign-name').value = c.name;
+                document.getElementById('edit-campaign-type').value = c.type;
+                document.getElementById('edit-campaign-desc').value = c.description || '';
+                document.getElementById('edit-campaign-budget').value = c.budget;
+                const editCurrency = document.getElementById('edit-campaign-currency');
+                if (editCurrency) {
+                    editCurrency.value = (window.CampaignCurrency
+                        ? CampaignCurrency.normalize(c.currency)
+                        : (c.currency || 'INR'));
+                }
+                if (editBudgetField) editBudgetField.refresh();
+                document.getElementById('edit-campaign-status').value = c.status;
+                document.getElementById('edit-campaign-start').value = c.start || '';
+                document.getElementById('edit-campaign-end').value = c.end || '';
+                document.getElementById('edit-campaign-project').value = c.project_id;
+                new bootstrap.Modal(document.getElementById('editCampaignModal')).show();
+            } catch (e) {
+                notify('Could not open edit dialog.', 'danger');
+            }
+        });
+    });
+
+    window.handleEditCampaign = function(event) {
+        event.preventDefault();
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const id = document.getElementById('edit-campaign-id').value;
+        const submitBtn = document.getElementById('edit-campaign-submit');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving…'; }
+
+        fetch('/content/campaigns/' + id + '/edit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+            body: JSON.stringify({
+                name: document.getElementById('edit-campaign-name').value,
+                project_id: document.getElementById('edit-campaign-project').value,
+                type: document.getElementById('edit-campaign-type').value,
+                budget: document.getElementById('edit-campaign-budget').value,
+                currency: document.getElementById('edit-campaign-currency').value,
+                start_date: document.getElementById('edit-campaign-start').value,
+                end_date: document.getElementById('edit-campaign-end').value,
+                status: document.getElementById('edit-campaign-status').value,
+                description: document.getElementById('edit-campaign-desc').value
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                notify('Campaign updated.', 'success');
+                window.location.reload();
+            } else {
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Save Changes'; }
+                notify('Failed to save changes: ' + (data.error || 'Unknown error'), 'danger');
+            }
+        })
+        .catch(() => {
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Save Changes'; }
+            notify('An error occurred.', 'danger');
+        });
+    };
+
+    window.deleteCampaign = function(id) {
+        if (!confirm('Are you sure you want to delete this campaign? All nested task memory and copywriting logs will be lost.')) return;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        fetch('/content/campaigns/' + id + '/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const card = document.getElementById('campaign-card-' + id);
+                if (card) card.remove();
+                notify('Campaign deleted.', 'success');
+                applyCampaignFilters();
+                updateStatCounts();
+            } else {
+                notify('Failed to delete campaign: ' + (data.error || 'Unknown error'), 'danger');
+            }
+        })
+        .catch(() => notify('An error occurred.', 'danger'));
+    };
+
+    function applyCampaignFilters() {
+        const cards = document.querySelectorAll('.campaign-card');
+        let visible = 0;
+        cards.forEach(card => {
+            const status = card.dataset.status;
+            const haystack = (card.dataset.name + ' ' + card.dataset.client + ' ' + card.dataset.type);
+            const matchesFilter = activeFilter === 'all' || status === activeFilter;
+            const matchesSearch = !searchQuery || haystack.includes(searchQuery);
+            const show = matchesFilter && matchesSearch;
+            card.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+
+        const grid = document.getElementById('campaigns-grid');
+        const filterEmpty = document.getElementById('campaigns-filter-empty');
+        if (grid && filterEmpty) {
+            if (cards.length === 0) {
+                grid.hidden = true;
+                filterEmpty.classList.add('d-none');
+            } else if (visible === 0) {
+                grid.hidden = true;
+                filterEmpty.classList.remove('d-none');
+            } else {
+                grid.hidden = false;
+                filterEmpty.classList.add('d-none');
+            }
+        }
+    }
+
+    function updateStatCounts() {
+        const cards = document.querySelectorAll('.campaign-card');
+        const total = cards.length;
+        let active = 0, completed = 0;
+        cards.forEach(c => {
+            if (c.dataset.status === 'active') active++;
+            if (c.dataset.status === 'completed') completed++;
+        });
+        const elTotal = document.getElementById('stat-total-count');
+        const elActive = document.getElementById('stat-active-count');
+        const elCompleted = document.getElementById('stat-completed-count');
+        if (elTotal) elTotal.textContent = total;
+        if (elActive) elActive.textContent = active;
+        if (elCompleted) elCompleted.textContent = completed;
+
+        if (total === 0) {
+            const initialEmpty = document.getElementById('campaigns-initial-empty');
+            const toolbar = document.querySelector('.campaigns-toolbar');
+            if (toolbar) toolbar.style.display = 'none';
+            if (!initialEmpty) {
+                const page = document.querySelector('.campaigns-page');
+                if (page) {
+                    const div = document.createElement('div');
+                    div.className = 'glass-card empty-state';
+                    div.id = 'campaigns-initial-empty';
+                    div.innerHTML = '<i class="bi bi-megaphone empty-state-icon"></i><h3 class="empty-state-title">No campaigns yet</h3><p class="empty-state-text">Launch your first marketing campaign to track budgets, assets, and lifecycle checklists.</p><button type="button" class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#createCampaignModal"><i class="bi bi-plus-circle me-1"></i>Create Campaign</button>';
+                    page.appendChild(div);
+                }
+            }
+        }
+    }
+
+    document.querySelectorAll('.campaign-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.campaign-filter-btn').forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+            });
+            this.classList.add('active');
+            this.setAttribute('aria-pressed', 'true');
+            activeFilter = this.dataset.filter;
+            applyCampaignFilters();
+        });
+    });
+
+    const searchInput = document.getElementById('campaigns-search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            searchQuery = this.value.trim().toLowerCase();
+            applyCampaignFilters();
+        });
+    }
+
+    const clearBtn = document.getElementById('campaigns-clear-filters');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            activeFilter = 'all';
+            searchQuery = '';
+            if (searchInput) searchInput.value = '';
+            document.querySelectorAll('.campaign-filter-btn').forEach(b => {
+                const isAll = b.dataset.filter === 'all';
+                b.classList.toggle('active', isAll);
+                b.setAttribute('aria-pressed', isAll ? 'true' : 'false');
+            });
+            applyCampaignFilters();
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.sidebar-item').forEach(l => l.classList.remove('active'));
+        const activeLink = document.getElementById('sidebar-campaigns');
+        if (activeLink) activeLink.classList.add('active');
+        showStep(1);
+        applyPlaybookPlatforms(PLAYBOOK_PLATFORMS.facebook_lead_gen);
+
+        if (window.CampaignCurrency) {
+            wizardBudgetField = CampaignCurrency.bindBudgetField({
+                amountInput: '#wizard-budget',
+                currencySelect: '#wizard-budget-currency',
+                symbolEl: '#wizard-budget-symbol',
+                previewEl: '#wizard-budget-preview',
+                labelEl: '#wizard-budget-label',
+                defaultCurrency: CampaignCurrency.DEFAULT_CURRENCY
+            });
+            editBudgetField = CampaignCurrency.bindBudgetField({
+                amountInput: '#edit-campaign-budget',
+                currencySelect: '#edit-campaign-currency',
+                symbolEl: '#edit-budget-symbol',
+                defaultCurrency: CampaignCurrency.DEFAULT_CURRENCY
+            });
+            const wizardBudget = document.getElementById('wizard-budget');
+            const wizardCurrency = document.getElementById('wizard-budget-currency');
+            if (wizardBudget) wizardBudget.addEventListener('input', updateWizardBudgetSummary);
+            if (wizardCurrency) wizardCurrency.addEventListener('change', updateWizardBudgetSummary);
+            updateWizardBudgetSummary();
+        }
+
+        const optionalEndToggle = document.getElementById('wizard-optional-end-toggle');
+        if (optionalEndToggle) {
+            optionalEndToggle.addEventListener('change', syncDurationUI);
+        }
+        ['wizard-start-date', 'wizard-end-date', 'wizard-recurrence'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', updateWizardTimelineSummary);
+        });
+        syncDurationUI();
+
+        {% if selected_project_id %}
+        const createModalEl = document.getElementById('createCampaignModal');
+        if (createModalEl && window.bootstrap) {
+            bootstrap.Modal.getOrCreateInstance(createModalEl).show();
+        }
+        {% endif %}
+    });
+})();
+</script>
+{% endblock %}

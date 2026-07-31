@@ -1,0 +1,69 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Infrastructure · Platform Admin{% endblock %}
+{% block page_title %}Infrastructure{% endblock %}
+{% block content %}
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="glass-card pa-panel">
+            <h3>Redis</h3>
+            <ul class="pa-list">
+                <li><span>Status</span><strong class="{% if data.health.checks.redis.ok %}text-success{% else %}text-danger{% endif %}">{{ data.health.checks.redis.detail }}</strong></li>
+                <li><span>Configured</span><strong>{{ 'yes' if data.redis_url_set else 'no' }}</strong></li>
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="glass-card pa-panel">
+            <h3>Celery / Workers</h3>
+            <ul class="pa-list">
+                <li><span>Workers</span><strong>{{ data.health.checks.workers.detail }}</strong></li>
+                <li><span>Eager mode</span><strong>{{ data.celery_eager }}</strong></li>
+                <li><span>Broker</span><strong class="small">{{ data.celery_broker }}</strong></li>
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="glass-card pa-panel">
+            <h3>Vector DB</h3>
+            <ul class="pa-list">
+                <li><span>Provider</span><strong>{{ data.health.vector_provider }}</strong></li>
+                <li><span>Health</span><strong>{{ data.health.checks.vector.detail }}</strong></li>
+                <li><span>Embeddings</span><strong>{{ data.health.embedding_provider }}</strong></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="glass-card pa-panel mb-3">
+    <h3>Queue status</h3>
+    <div class="d-flex flex-wrap gap-2 mb-2">
+        {% for status, count in data.by_status.items() %}
+        <span class="pa-chip">{{ status }} · {{ count }}</span>
+        {% else %}
+        <span class="text-secondary small">No background jobs recorded.</span>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="glass-card pa-panel">
+    <h3>Background jobs</h3>
+    <div class="table-responsive">
+        <table class="table table-custom pa-table mb-0">
+            <thead><tr><th>ID</th><th>Task</th><th>Status</th><th>Progress</th><th>Created</th></tr></thead>
+            <tbody>
+                {% for j in data.jobs %}
+                <tr>
+                    <td>{{ j.id }}</td>
+                    <td>{{ j.task_name }}</td>
+                    <td>{{ j.status }}</td>
+                    <td>{{ j.progress }}%</td>
+                    <td>{{ j.created_at.strftime('%m-%d %H:%M') if j.created_at else '—' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-secondary">No jobs.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

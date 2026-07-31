@@ -1,0 +1,12 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}{{ section_title }} · Platform Admin{% endblock %}
+{% block page_title %}{{ section_title }}{% endblock %}
+{% block content %}
+<div class="glass-card pa-panel pa-stub">
+    <h3>{{ section_title }}</h3>
+    <p class="text-secondary mb-0">
+        This admin section is scaffolded in the information architecture.
+        Deep controls will reuse existing APIs and infra probes — no customer-facing exposure.
+    </p>
+</div>
+{% endblock %}

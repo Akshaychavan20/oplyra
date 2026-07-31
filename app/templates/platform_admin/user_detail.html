@@ -1,0 +1,97 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}{{ user.username }} · Users · Platform Admin{% endblock %}
+{% block page_title %}{{ user.username }}{% endblock %}
+{% block breadcrumb %}Users / {{ user.username }}{% endblock %}
+{% block page_subtitle %}
+<p>{{ user.email }} · customer account · Platform Admin</p>
+{% endblock %}
+{% block page_actions %}
+<div class="pa-actions">
+    {% if suspended %}
+    <form method="post" action="{{ url_for('platform_admin.user_activate', user_id=user.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-primary-custom btn-sm" type="submit">Activate</button>
+    </form>
+    {% else %}
+    <form method="post" action="{{ url_for('platform_admin.user_suspend', user_id=user.id) }}" onsubmit="return confirm('Suspend this user?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-secondary-custom btn-sm" type="submit">Suspend</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{{ url_for('platform_admin.user_reset_password', user_id=user.id) }}" onsubmit="return confirm('Create a password reset link? The password itself is never shown.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-secondary-custom btn-sm" type="submit">Reset password</button>
+    </form>
+    <a class="btn btn-secondary-custom btn-sm" href="{{ url_for('platform_admin.users') }}">Back</a>
+</div>
+{% endblock %}
+{% block content %}
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="glass-card pa-panel">
+            <div class="pa-panel-head"><h3>Profile</h3>
+                {% if suspended %}<span class="pa-chip pa-chip-warn">Suspended</span>{% else %}<span class="pa-chip pa-chip-ok">Active</span>{% endif %}
+            </div>
+            <ul class="pa-list">
+                <li><span>User ID</span><strong>{{ user.id }}</strong></li>
+                <li><span>Joined</span><strong>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '—' }}</strong></li>
+                <li><span>Organization</span><strong>{{ org.name if org else '—' }}</strong></li>
+                <li><span>Plan</span><strong>{{ org.plan_tier if org else '—' }}</strong></li>
+                <li><span>Role</span><strong>{{ membership.role if membership else '—' }}</strong></li>
+            </ul>
+            <p class="small text-secondary mb-0 mt-2">Passwords are never displayed or exported.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="glass-card pa-panel">
+            <div class="pa-panel-head"><h3>Clients</h3></div>
+            <ul class="pa-list">
+                {% for c in clients %}
+                <li><span>{{ c.name }}</span><strong>{{ c.updated_at.strftime('%m-%d') if c.updated_at else '' }}</strong></li>
+                {% else %}
+                <li><span class="text-secondary">No clients</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="glass-card pa-panel">
+            <div class="pa-panel-head"><h3>Recent AI</h3></div>
+            <ul class="pa-list">
+                {% for log in recent_ai %}
+                <li>
+                    <span>{{ log.provider or 'ai' }} · {{ log.model_used or '—' }}</span>
+                    <strong>{{ log.created_at.strftime('%m-%d %H:%M') if log.created_at else '' }}</strong>
+                </li>
+                {% else %}
+                <li><span class="text-secondary">No AI usage</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="glass-card pa-table-shell mt-3">
+    <div class="pa-panel-head px-3 pt-3 mb-0">
+        <h3>Activity</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-custom pa-table mb-0">
+            <thead>
+                <tr><th>When</th><th>Event</th><th>Detail</th></tr>
+            </thead>
+            <tbody>
+                {% for ev in recent_activity %}
+                <tr>
+                    <td class="text-secondary">{{ ev.created_at.strftime('%Y-%m-%d %H:%M') if ev.created_at else '—' }}</td>
+                    <td>{{ ev.activity_type }}</td>
+                    <td class="text-secondary small">{{ ev.token_usage or 0 }} tokens</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" class="text-secondary">No recent activity.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

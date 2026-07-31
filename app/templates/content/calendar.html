@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}Content Calendar - Oplyra{% endblock %}
+
+{% block extra_head %}
+<style>
+    .calendar-container {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 1.5rem;
+    }
+    .calendar-grid {
+        background: #121724;
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 16px;
+        padding: 1.25rem;
+    }
+    .calendar-header-row {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .calendar-days-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        grid-template-rows: repeat(5, minmax(100px, 1fr));
+        gap: 2px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .calendar-cell {
+        background: #0d111b;
+        padding: 0.5rem;
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        transition: background 0.15s;
+    }
+    .calendar-cell.today {
+        background: linear-gradient(135deg, #0e1629 0%, #0d111b 100%);
+        border: 1px solid rgba(99, 102, 241, 0.25);
+    }
+    .calendar-cell-num {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 0.35rem;
+    }
+    .calendar-cell.today .calendar-cell-num {
+        color: #6366f1;
+        font-weight: 700;
+    }
+    .post-badge {
+        font-size: 0.65rem;
+        padding: 0.25rem 0.4rem;
+        border-radius: 4px;
+        margin-bottom: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        cursor: grab;
+        color: white;
+        text-decoration: none;
+    }
+    .post-badge-linkedin { background-color: #0077b5; }
+    .post-badge-twitter { background-color: #1da1f2; }
+    .post-badge-facebook { background-color: #1877f2; }
+    .post-badge-instagram { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
+    
+    .holiday-card {
+        background: rgba(245, 158, 11, 0.05);
+        border: 1px dashed rgba(245, 158, 11, 0.25) !important;
+        border-radius: 6px;
+        padding: 0.5rem;
+        font-size: 0.65rem;
+        color: #f59e0b;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="calendar-page">
+    <header class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-white mb-1"><i class="bi bi-calendar3 text-indigo me-2"></i>Content Calendar</h2>
+            <p class="text-secondary mb-0 small">Schedule, queue, and coordinate social media content posts visually.</p>
+        </div>
+        <button type="button" class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#schedulePostModal">
+            <i class="bi bi-calendar-plus me-1.5"></i>Schedule Post
+        </button>
+    </header>
+
+    <div class="calendar-container">
+        <!-- Calendar Grid -->
+        <div>
+            <div class="calendar-grid">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="text-white mb-0 fw-bold" id="calendar-month-name">June 2026</h5>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary-custom btn-sm"><i class="bi bi-chevron-left"></i></button>
+                        <button type="button" class="btn btn-outline-secondary-custom btn-sm active">Today</button>
+                        <button type="button" class="btn btn-outline-secondary-custom btn-sm"><i class="bi bi-chevron-right"></i></button>
+                    </div>
+                </div>
+
+                <div class="calendar-header-row">
+                    <div>Mon</div>
+                    <div>Tue</div>
+                    <div>Wed</div>
+                    <div>Thu</div>
+                    <div>Fri</div>
+                    <div>Sat</div>
+                    <div>Sun</div>
+                </div>
+
+                <div class="calendar-days-grid" id="calendar-days-container">
+                    <!-- June 2026 starts on Monday June 1st -->
+                    {% for day in range(1, 31) %}
+                        {% set is_today = (day == 21) %}
+                        <div class="calendar-cell {% if is_today %}today{% endif %}" data-day="{{ day }}" ondragover="allowDrop(event)" ondrop="drop(event, {{ day }})">
+                            <div class="calendar-cell-num">{{ day }}</div>
+                            
+                            <!-- Holiday Suggestions -->
+                            {% if day == 21 %}
+                                <div class="holiday-card">
+                                    <i class="bi bi-gift-fill"></i>Father's Day
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Dummy scheduled posts for June 21st, 22nd, 23rd -->
+                            {% if day == 21 %}
+                                <div class="post-badge post-badge-linkedin" draggable="true" ondragstart="drag(event, 'post-1')" id="post-1">
+                                    <i class="bi bi-linkedin"></i>SaaS Review
+                                </div>
+                            {% elif day == 22 %}
+                                <div class="post-badge post-badge-twitter" draggable="true" ondragstart="drag(event, 'post-2')" id="post-2">
+                                    <i class="bi bi-twitter"></i>Ad Copy Draft
+                                </div>
+                            {% elif day == 23 %}
+                                <div class="post-badge post-badge-facebook" draggable="true" ondragstart="drag(event, 'post-3')" id="post-3">
+                                    <i class="bi bi-facebook"></i>Blog Launch
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Inspector -->
+        <div>
+            <div class="glass-card p-3 mb-3" style="background: #121724; border: 1px solid rgba(255,255,255,0.05); border-radius: 16px;">
+                <h5 class="text-white mb-3">Holiday Suggestions</h5>
+                <ul class="list-unstyled d-flex flex-column gap-2 small text-secondary">
+                    <li class="p-2 rounded" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05);">
+                        <div class="fw-bold text-warning mb-1"><i class="bi bi-gift-fill me-1"></i>Father's Day (Jun 21)</div>
+                        <span>Generate a greeting review referencing tech tools father appreciation.</span>
+                    </li>
+                    <li class="p-2 rounded" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05);">
+                        <div class="fw-bold text-indigo mb-1"><i class="bi bi-sunrise-fill me-1"></i>Summer Solstice (Jun 21)</div>
+                        <span>Create a summer promotion campaign for outdoor fitness affiliate items.</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="glass-card p-3" style="background: #121724; border: 1px solid rgba(255,255,255,0.05); border-radius: 16px;">
+                <h5 class="text-white mb-2">Content Library Queue</h5>
+                <p class="text-muted small mb-3">Drag assets into the calendar grid to quickly schedule publishing dates.</p>
+                
+                <div class="d-flex flex-column gap-2">
+                    {% for item in contents[:4] %}
+                        <div class="p-2.5 rounded bg-black bg-opacity-20 border border-secondary border-opacity-10" draggable="true" ondragstart="dragLibrary(event, {{ item.id }}, '{{ item.title }}')" style="cursor: grab;">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <span class="badge bg-indigo bg-opacity-15 text-indigo px-1.5 py-0.5" style="font-size: 0.6rem; text-transform: uppercase;">
+                                    {{ item.type | replace('_', ' ') }}
+                                </span>
+                            </div>
+                            <div class="text-white small fw-bold text-truncate">{{ item.title }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Schedule Post Modal -->
+<div class="modal fade" id="schedulePostModal" tabindex="-1" aria-labelledby="schedulePostModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-custom">
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="schedulePostModalLabel"><i class="bi bi-calendar-plus text-indigo me-2"></i>Schedule Social Post</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="schedule-form">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="schedule-content" class="form-label-custom">Select Content Asset</label>
+                        <select id="schedule-content" class="form-select form-control-custom" required>
+                            {% for item in contents %}
+                                <option value="{{ item.id }}">{{ item.title }} ({{ item.type }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="schedule-platform" class="form-label-custom">Select Channel Platform</label>
+                        <select id="schedule-platform" class="form-select form-control-custom" required>
+                            <option value="linkedin">LinkedIn Page</option>
+                            <option value="facebook">Facebook Page</option>
+                            <option value="twitter">X (Twitter) Profile</option>
+                            <option value="instagram">Instagram Business</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="schedule-date" class="form-label-custom">Publishing Date & Time</label>
+                        <input type="datetime-local" id="schedule-date" class="form-control form-control-custom" required>
+                    </div>
+                </div>
+                <div class="modal-footer modal-footer-custom">
+                    <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom">Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Highlight active sidebar item
+        document.querySelectorAll('.sidebar-item').forEach(l => l.classList.remove('active'));
+        const activeLink = document.getElementById('sidebar-calendar');
+        if (activeLink) activeLink.classList.add('active');
+
+        // Form submit handler
+        const scheduleForm = document.getElementById('schedule-form');
+        scheduleForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const content_id = document.getElementById('schedule-content').value;
+            const platform = document.getElementById('schedule-platform').value;
+            const scheduled_at = document.getElementById('schedule-date').value;
+
+            fetch('/content/social/schedule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    content_id: parseInt(content_id),
+                    platform: platform,
+                    scheduled_at: scheduled_at
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    alert('Post scheduled successfully!');
+                    location.reload();
+                } else {
+                    alert('Scheduling failed: ' + data.error);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Scheduling API request error');
+            });
+        });
+    });
+
+    // Drag and Drop implementation
+    let dragPostId = null;
+    let dragLibraryId = null;
+    let dragLibraryTitle = null;
+
+    function drag(ev, id) {
+        dragPostId = id;
+        dragLibraryId = null;
+        ev.dataTransfer.setData("text", ev.target.id);
+    }
+
+    function dragLibrary(ev, id, title) {
+        dragLibraryId = id;
+        dragPostId = null;
+        dragLibraryTitle = title;
+        ev.dataTransfer.setData("text", ev.target.innerText);
+    }
+
+    function allowDrop(ev) {
+        ev.preventDefault();
+    }
+
+    function drop(ev, day) {
+        ev.preventDefault();
+        
+        if (dragPostId) {
+            // Dragged existing calendar post - reschedule
+            const postElement = document.getElementById(dragPostId);
+            const targetCell = ev.currentTarget;
+            targetCell.appendChild(postElement);
+            
+            // Post update schedule via API
+            const scheduled_date = `2026-06-${day.toString().padStart(2, '0')}T15:30:00Z`;
+            
+            fetch('/content/calendar/reschedule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    post_id: dragPostId === 'post-1' ? 1 : (dragPostId === 'post-2' ? 2 : 3), // resolve mock post ID
+                    scheduled_at: scheduled_date
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    console.log(`Rescheduled mock post to day ${day}`);
+                }
+            });
+        } else if (dragLibraryId) {
+            // Dragged new item from library queue - schedule it
+            const targetCell = ev.currentTarget;
+            const scheduled_date = `2026-06-${day.toString().padStart(2, '0')}T12:00:00Z`;
+            
+            fetch('/content/social/schedule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    content_id: dragLibraryId,
+                    platform: 'linkedin', // default platform to LinkedIn for quick drag-drop schedule
+                    scheduled_at: scheduled_date
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    // Create cell badge dynamically
+                    const badge = document.createElement('div');
+                    badge.className = 'post-badge post-badge-linkedin';
+                    badge.id = `post-${data.post_id}`;
+                    badge.innerHTML = `<i class="bi bi-linkedin"></i>${dragLibraryTitle}`;
+                    targetCell.appendChild(badge);
+                } else {
+                    alert('Failed to schedule: ' + data.error);
+                }
+            });
+        }
+    }
+</script>
+{% endblock %}

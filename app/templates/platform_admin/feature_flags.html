@@ -1,0 +1,44 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Feature Flags · Platform Admin{% endblock %}
+{% block page_title %}Feature Flags{% endblock %}
+{% block page_subtitle %}
+<p>Internal controls stored in Redis. Customer UI stays unchanged until a flag is wired into product code.</p>
+{% endblock %}
+{% block content %}
+<div class="row g-3">
+    {% for key, enabled in flags.items() %}
+    <div class="col-md-6 col-xl-4">
+        <div class="glass-card pa-panel h-100">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                    <h3 class="mb-1" style="font-size:0.95rem;">{{ key|replace('_', ' ')|title }}</h3>
+                    <code class="small text-secondary">{{ key }}</code>
+                </div>
+                <span class="pa-chip {% if enabled %}pa-chip-ok{% else %}{% endif %}">{% if enabled %}On{% else %}Off{% endif %}</span>
+            </div>
+            <div class="pa-actions mt-3">
+                <form method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="key" value="{{ key }}">
+                    <input type="hidden" name="enabled" value="1">
+                    <button class="btn btn-primary-custom btn-sm" type="submit" {% if enabled %}disabled{% endif %}>Enable</button>
+                </form>
+                <form method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="key" value="{{ key }}">
+                    <input type="hidden" name="enabled" value="0">
+                    <button class="btn btn-secondary-custom btn-sm" type="submit" {% if not enabled %}disabled{% endif %}>Disable</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="glass-card pa-empty empty-state">
+            <div class="empty-state-title">No flags configured</div>
+            <p class="empty-state-text mb-0">Flags will appear here once the Redis store is initialized.</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

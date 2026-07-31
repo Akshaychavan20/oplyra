@@ -1,0 +1,630 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Oplyra{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Fullscreen Animated Particle Canvas */
+    #particle-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1;
+        pointer-events: auto;
+    }
+    
+    /* Layout Center Alignment */
+    .auth-wrapper {
+        min-height: calc(100vh - var(--header-height) - 4rem);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        z-index: 2;
+        padding: 2.5rem 0 2rem;
+    }
+
+    /* Outer assembly wrapper for animations */
+    .auth-container {
+        width: 100%;
+        max-width: 440px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transform: translateY(20px);
+        opacity: 0;
+        animation: cardAppear 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.1s;
+    }
+
+    /* Glassmorphism Card Styling */
+    .login-card {
+        background: rgba(15, 23, 42, 0.45);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 
+                    inset 0 0 1px rgba(255, 255, 255, 0.15);
+        padding: 3rem 2.5rem;
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        width: 100%;
+    }
+    
+    @keyframes cardAppear {
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    
+    .login-card:hover {
+        border-color: rgba(99, 102, 241, 0.25);
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 
+                    0 0 30px rgba(99, 102, 241, 0.08);
+    }
+
+    /* Logo Pulse & Brand */
+    .logo-container {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 54px;
+        height: 54px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+        box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+        margin-bottom: 0.75rem;
+        animation: pulseLogo 3s ease-in-out infinite;
+    }
+    
+    @keyframes pulseLogo {
+        0%, 100% { transform: scale(1); box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3); }
+        50% { transform: scale(1.05); box-shadow: 0 10px 25px rgba(99, 102, 241, 0.5); }
+    }
+    
+    .brand-logo-icon i {
+        font-size: 1.8rem;
+        color: white;
+    }
+
+    .brand-title {
+        font-size: var(--text-h2);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: var(--tracking-heading);
+    }
+    
+    .tagline {
+        color: #94a3b8;
+        font-size: var(--text-small);
+        font-weight: var(--font-weight-regular);
+        line-height: var(--leading-normal);
+    }
+
+    /* Floating Inputs Styles */
+    .floating-group {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+    
+    .floating-input {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        font-size: 0.875rem;
+        background: rgba(8, 12, 24, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        color: #fff;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        outline: none;
+    }
+    
+    .floating-input:focus {
+        border-color: hsl(var(--primary));
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+        background: rgba(8, 12, 24, 0.7);
+    }
+    
+    .floating-label {
+        position: absolute;
+        top: 50%;
+        left: 1rem;
+        transform: translateY(-50%);
+        color: #64748b;
+        font-size: 0.85rem;
+        pointer-events: none;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        transform-origin: left top;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .floating-input:focus ~ .floating-label,
+    .floating-input:not(:placeholder-shown) ~ .floating-label {
+        top: 0;
+        transform: translateY(-50%) scale(0.8);
+        background: #090e1b;
+        padding: 0 0.4rem;
+        color: hsl(var(--primary));
+    }
+    
+    /* Toggle Password Button */
+    .toggle-password {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #64748b;
+        cursor: pointer;
+        transition: color 0.2s;
+        z-index: 10;
+        padding: 0.2rem;
+    }
+    
+    .toggle-password:hover {
+        color: #fff;
+    }
+    
+    /* Validation & Custom Messages */
+    .invalid-feedback-custom {
+        display: none;
+        color: #f43f5e;
+        font-size: 0.725rem;
+        margin-top: 0.25rem;
+        padding-left: 0.25rem;
+        animation: fadeInMsg 0.2s ease-in-out;
+    }
+    
+    @keyframes fadeInMsg {
+        from { opacity: 0; transform: translateY(-3px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .invalid-feedback-custom.show {
+        display: block;
+    }
+    
+    .floating-input.invalid-state {
+        border-color: #f43f5e !important;
+        box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.15) !important;
+    }
+
+    /* Password Strength Design */
+    .password-strength-container {
+        margin-top: -0.75rem;
+        margin-bottom: 1.25rem;
+        padding: 0 0.25rem;
+        animation: fadeInMsg 0.25s ease-in-out;
+    }
+
+    /* Custom Checkbox Design */
+    .custom-checkbox-container {
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
+        font-size: 0.8rem;
+        color: #94a3b8;
+        transition: color 0.2s;
+    }
+    
+    .custom-checkbox-container:hover {
+        color: #fff;
+    }
+    
+    .custom-checkbox {
+        display: none;
+    }
+    
+    .custom-checkbox-indicator {
+        width: 16px;
+        height: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 4px;
+        margin-right: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        background: rgba(15, 23, 42, 0.4);
+    }
+    
+    .custom-checkbox:checked + .custom-checkbox-indicator {
+        background: hsl(var(--primary));
+        border-color: hsl(var(--primary));
+    }
+    
+    .custom-checkbox-indicator i {
+        color: white;
+        font-size: 0.65rem;
+        display: none;
+    }
+    
+    .custom-checkbox:checked + .custom-checkbox-indicator i {
+        display: block;
+    }
+    
+    /* Forgot Password / Register Links */
+    .forgot-password-link {
+        color: #64748b;
+        font-size: 0.8rem;
+        transition: color 0.2s;
+    }
+    
+    .forgot-password-link:hover {
+        color: white;
+    }
+    
+    /* Toast overriding standard layouts */
+    .alert-container {
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        z-index: 1080;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 380px;
+        width: calc(100vw - 48px);
+    }
+    
+    .alert-custom {
+        background: rgba(15, 23, 42, 0.9) !important;
+        backdrop-filter: blur(15px) !important;
+        -webkit-backdrop-filter: blur(15px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.4) !important;
+        border-radius: 8px !important;
+        padding: 0.85rem 1.15rem !important;
+        color: #fff !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        animation: toastSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    }
+</style>
+{% endblock %}
+
+{% block nav_auth_buttons %}{% endblock %}
+
+{% block content %}
+<!-- Fullscreen Interactive Particle Canvas -->
+<canvas id="particle-canvas"></canvas>
+
+<div class="auth-wrapper">
+    <div class="auth-container">
+        {% from 'partials/_logo.html' import oplyra_logo %}
+        <div class="text-center mb-4 auth-brand-block">
+            {{ oplyra_logo('auth', url_for('main.index')) }}
+            <p class="tagline">Performance Marketing in One Place</p>
+        </div>
+        
+        <!-- Login Card -->
+        <div class="login-card">
+            <!-- Login Form -->
+            <form action="{{ url_for('auth.login') }}" method="POST" id="login-form" class="needs-validation" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <!-- Username/Email Floating Input Group -->
+                <div class="floating-group">
+                    <input type="text" 
+                           name="email_or_username" 
+                           id="email_or_username" 
+                           class="floating-input" 
+                           value="{{ email_or_username or '' }}" 
+                           required 
+                           placeholder=" ">
+                    <label for="email_or_username" class="floating-label">
+                        <i class="bi bi-person text-secondary"></i>
+                        <span>Email or Username</span>
+                    </label>
+                    <div class="invalid-feedback-custom" id="email-feedback">Please enter your email or username.</div>
+                </div>
+                
+                <!-- Password Floating Input Group -->
+                <div class="floating-group mb-4">
+                    <input type="password" 
+                           name="password" 
+                           id="password" 
+                           class="floating-input" 
+                           required 
+                           placeholder=" ">
+                    <label for="password" class="floating-label">
+                        <i class="bi bi-key text-secondary"></i>
+                        <span>Password</span>
+                    </label>
+                    <button type="button" class="toggle-password" id="toggle-password-btn" tabindex="-1">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                    <div class="invalid-feedback-custom" id="password-feedback">Please enter your password.</div>
+                </div>
+                
+                <!-- Password Strength Bar (Responsive guide) -->
+                <div class="password-strength-container d-none" id="strength-container">
+                    <div class="d-flex justify-content-between mb-1 small text-secondary" style="font-size: 0.65rem;">
+                        <span>Security strength:</span>
+                        <span id="strength-label">Weak</span>
+                    </div>
+                    <div class="progress" style="height: 3px; background: rgba(255,255,255,0.05); border-radius: 2px;">
+                        <div class="progress-bar" id="strength-bar" role="progressbar" style="width: 0%; transition: all 0.3s;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+                
+                <!-- Remember me & Forgot Password -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <label class="custom-checkbox-container">
+                        <input type="checkbox" name="remember" id="remember" class="custom-checkbox">
+                        <span class="custom-checkbox-indicator">
+                            <i class="bi bi-check-lg"></i>
+                        </span>
+                        <span>Remember me</span>
+                    </label>
+                    <a href="{{ url_for('auth.forgot_password') }}" class="forgot-password-link small text-decoration-none" id="forgot-password-btn">Forgot password?</a>
+                </div>
+                
+                <!-- Submit button with loading spinner state -->
+                <button type="submit" class="btn btn-primary-custom w-100 py-2.5" id="submit-btn">
+                    <i class="bi bi-box-arrow-in-right me-1.5"></i>Sign In
+                </button>
+            </form>
+        </div>
+        
+        <!-- Horizontally centered option immediately below card -->
+        <div class="text-center mt-4">
+            <span class="small text-secondary">New to Oplyra?</span>
+            <a href="{{ url_for('auth.register') }}" class="small text-decoration-none ms-1 fw-bold" style="color: hsl(var(--primary));">Create an account</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Password Visibility Toggle
+    const passwordInput = document.getElementById('password');
+    const toggleBtn = document.getElementById('toggle-password-btn');
+    if (toggleBtn && passwordInput) {
+        toggleBtn.addEventListener('click', function() {
+            const icon = this.querySelector('i');
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            }
+        });
+    }
+
+    // 2. Real-time Password Strength Indicator
+    const strengthContainer = document.getElementById('strength-container');
+    const strengthBar = document.getElementById('strength-bar');
+    const strengthLabel = document.getElementById('strength-label');
+    if (passwordInput && strengthContainer && strengthBar && strengthLabel) {
+        passwordInput.addEventListener('input', function() {
+            const val = this.value;
+            if (val.length === 0) {
+                strengthContainer.classList.add('d-none');
+                return;
+            }
+            strengthContainer.classList.remove('d-none');
+            
+            let score = 0;
+            if (val.length >= 6) score++;
+            if (val.length >= 10) score++;
+            if (/[A-Z]/.test(val)) score++;
+            if (/[0-9]/.test(val)) score++;
+            if (/[^A-Za-z0-9]/.test(val)) score++;
+            
+            let strength = 'Weak';
+            let barColor = 'bg-danger';
+            let width = '33%';
+            
+            if (score >= 4) {
+                strength = 'Strong';
+                barColor = 'bg-success';
+                width = '100%';
+            } else if (score >= 2) {
+                strength = 'Medium';
+                barColor = 'bg-warning';
+                width = '66%';
+            }
+            
+            strengthLabel.textContent = strength;
+            strengthBar.className = 'progress-bar ' + barColor;
+            strengthBar.style.width = width;
+        });
+    }
+
+    // 3. Real-time Form Validation
+    const form = document.getElementById('login-form');
+    const emailInput = document.getElementById('email_or_username');
+    const emailFeedback = document.getElementById('email-feedback');
+    const passwordFeedback = document.getElementById('password-feedback');
+    const submitBtn = document.getElementById('submit-btn');
+
+    function checkEmailValidity() {
+        if (emailInput.value.trim() === '') {
+            emailInput.classList.add('invalid-state');
+            emailFeedback.classList.add('show');
+            return false;
+        } else {
+            emailInput.classList.remove('invalid-state');
+            emailFeedback.classList.remove('show');
+            return true;
+        }
+    }
+
+    function checkPasswordValidity() {
+        if (passwordInput.value === '') {
+            passwordInput.classList.add('invalid-state');
+            passwordFeedback.classList.add('show');
+            return false;
+        } else {
+            passwordInput.classList.remove('invalid-state');
+            passwordFeedback.classList.remove('show');
+            return true;
+        }
+    }
+
+    if (emailInput) {
+        emailInput.addEventListener('blur', checkEmailValidity);
+        emailInput.addEventListener('input', function() {
+            if (this.value.trim() !== '') {
+                this.classList.remove('invalid-state');
+                emailFeedback.classList.remove('show');
+            }
+        });
+    }
+
+    if (passwordInput) {
+        passwordInput.addEventListener('blur', checkPasswordValidity);
+        passwordInput.addEventListener('input', function() {
+            if (this.value !== '') {
+                this.classList.remove('invalid-state');
+                passwordFeedback.classList.remove('show');
+            }
+        });
+    }
+
+    // 4. Form Submission and Loader
+    if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+            const isEmailValid = checkEmailValidity();
+            const isPasswordValid = checkPasswordValidity();
+            
+            if (!isEmailValid || !isPasswordValid) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
+            // Set loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Signing In...';
+            
+            if (emailInput) emailInput.readOnly = true;
+            if (passwordInput) passwordInput.readOnly = true;
+            const rememberInput = document.getElementById('remember');
+            if (rememberInput) rememberInput.disabled = true;
+        });
+    }
+
+    // 5. Interactive Canvas Particle Background
+    const canvas = document.getElementById('particle-canvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+        
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+        
+        const particles = [];
+        const particleCount = Math.min(60, Math.floor((width * height) / 20000));
+        
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 0.4;
+                this.vy = (Math.random() - 0.5) * 0.4;
+                this.radius = Math.random() * 2 + 1;
+                this.alpha = Math.random() * 0.4 + 0.15;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                if (this.x < 0 || this.x > width) this.vx = -this.vx;
+                if (this.y < 0 || this.y > height) this.vy = -this.vy;
+            }
+            
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(99, 102, 241, ${this.alpha})`;
+                ctx.fill();
+            }
+        }
+        
+        for (let i = 0; i < particleCount; i++) {
+            particles.push(new Particle());
+        }
+        
+        let mouse = { x: null, y: null };
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+        window.addEventListener('mouseleave', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+        
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+                
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < 100) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = `rgba(99, 102, 241, ${0.15 * (1 - dist / 100)})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                }
+                
+                if (mouse.x !== null) {
+                    const dx = particles[i].x - mouse.x;
+                    const dy = particles[i].y - mouse.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(mouse.x, mouse.y);
+                        ctx.strokeStyle = `rgba(129, 140, 248, ${0.2 * (1 - dist / 150)})`;
+                        ctx.lineWidth = 0.7;
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+    }
+
+    // 6. Alert Popups Auto-Close behavior
+    setTimeout(() => {
+        const alerts = document.querySelectorAll('.alert-custom');
+        alerts.forEach(alert => {
+            alert.style.transition = 'all 0.5s ease';
+            alert.style.opacity = '0';
+            alert.style.transform = 'translateX(100%)';
+            setTimeout(() => alert.remove(), 500);
+        });
+    }, 4500);
+
+});
+</script>
+{% endblock %}

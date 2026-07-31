@@ -1,0 +1,20 @@
+{#
+  Admin page layout contract (implemented in base_admin.html + platform-admin.css)
+
+  Hierarchy (do not invent alternate wrappers in page templates):
+    body.pa-app
+      aside.sidebar-fixed          → position:fixed
+      header.top-navbar.pa-topnav  → position:fixed; height: var(--header-height)
+      main.main-wrapper.pa-main    → padding-top: var(--header-height); overflow:hidden
+        .pa-page                   → flex column; fills main
+          .pa-flash-wrap           → optional alerts
+          header.pa-page-header    → static title bar (NOT sticky)
+          .pa-page-body            → ONLY scrollport for page content
+
+  Page templates should only override:
+    - page_title / page_subtitle / page_actions / breadcrumb
+    - content  (goes inside .pa-page-body)
+
+  Do not add outer page-content padding, sticky headers, or margin-top hacks
+  on the page root — spacing is owned by .pa-page-body.
+#}

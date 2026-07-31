@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block title %}AI Content Studio - Oplyra{% endblock %}
+
+{% block content %}
+<div class="ai-studio-page">
+
+<!-- Fullscreen loading overlay -->
+<div id="loading-overlay" class="d-none">
+    <div class="loading-overlay-content">
+        {% from 'partials/_logo.html' import oplyra_logo %}
+        {{ oplyra_logo('loading', href=none) }}
+        <div class="spinner-border loading-spinner mb-4" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h3 class="loading-overlay-title">Generating Masterpiece</h3>
+        <p class="loading-overlay-text">AI Engine is structuring headers, refining copywriting, and weaving target keywords. Please hold on...</p>
+    </div>
+</div>
+
+<!-- Page header -->
+<div class="page-header">
+    <div>
+        <h1 class="page-header-title">AI Content Studio</h1>
+        <p class="page-header-subtitle">Generate high-converting marketing copy with AI</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+        <a href="{{ url_for('content.content_status') }}" class="btn btn-primary-custom px-4 py-1.5 rounded-pill">
+            <i class="bi bi-magic me-1.5"></i>AI Studio
+        </a>
+        <a href="{{ url_for('content.content_library') }}" class="btn btn-outline-secondary-custom px-4 py-1.5 rounded-pill">
+            <i class="bi bi-folder2-open me-1.5"></i>Content Library
+        </a>
+        <a href="{{ url_for('projects.projects_status') }}" class="btn btn-secondary-custom btn-sm py-2 px-3">
+            <i class="bi bi-chevron-left me-1"></i>Workspaces
+        </a>
+    </div>
+</div>
+
+<!-- Bento Grid Workspace wrapped in the submission Form -->
+<form id="generate-form" action="" method="POST" class="needs-validation" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+    <!-- Hidden Select input matching the original model element for script integrations -->
+    <select name="type" id="type" class="d-none">
+        <option value="blog" selected>Blog Post</option>
+        <option value="email">Email Campaign</option>
+        <option value="facebook_post">Facebook Post</option>
+        <option value="product_review">Product Review</option>
+        <option value="carousel">Carousel Slide</option>
+        <option value="video_script">Video Script</option>
+        <option value="image_prompt">Image Prompt</option>
+        <option value="ad_copy">Ad Copy</option>
+    </select>
+    
+    <div class="studio-workspace-grid">
+        
+        <!-- Left 3 Columns: Prompt & Formats -->
+        <div class="lg-span-3 d-flex flex-column gap-4">
+            
+            <!-- Cell 1: AI Prompt Composer -->
+            <div class="studio-card">
+                <div class="d-flex align-items-center justify-content-between studio-card-header">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-indigo"><i class="bi bi-chat-left-quote-fill fs-5"></i></span>
+                        <h6 class="studio-section-title">1. AI Prompt Composer</h6>
+                    </div>
+                    <div>
+                        <select id="prompt-template-select" class="form-select form-select-sm form-control-custom py-1 px-2 template-select" aria-label="Quick AI templates">
+                            <option value="">-- Quick AI Templates --</option>
+                            <option value="high-intent" data-tone="persuasive" data-audience="purchase-ready consumers" data-topic="In-depth Review: Is the [Product Name] Worth Your Money?">High-Intent Review Card</option>
+                            <option value="educational" data-tone="informative" data-audience="beginners" data-topic="A Step-by-Step Guide on How to Master [Product Name]">Step-by-Step Tutorial</option>
+                            <option value="newsletter" data-tone="friendly" data-audience="newsletter subscribers" data-topic="Inside Look: Why We Love the [Product Name]">Email Newsletter Feature</option>
+                            <option value="social-teaser" data-tone="excited" data-audience="social media followers" data-topic="Check out the brand new [Product Name] - game changer! 🚀">Social Media Promo Teaser</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="error-alert-container" class="alert alert-danger d-none mb-3 p-3 small" role="alert"></div>
+
+                <div class="mb-3" id="topic-container">
+                    <label for="topic" id="topic-label" class="form-label-custom fs-6 mb-2">Prompt / Campaign Focus *</label>
+                    <textarea name="topic" id="topic" class="form-control prompt-textarea" placeholder="Describe what you want to generate in detail (e.g., product benefits, key marketing message, core theme)..." required></textarea>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6" id="product-container">
+                        <label for="product_name" class="form-label-custom">Product / Brand Name *</label>
+                        <input type="text" name="product_name" id="product_name" class="form-control form-control-custom py-2" placeholder="e.g., Smart Blender Pro" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="keywords" class="form-label-custom">Target Keywords (Comma Separated)</label>
+                        <input type="text" name="keywords" id="keywords" class="form-control form-control-custom py-2" placeholder="e.g., blender, smoothie, kitchen hacks">
+                    </div>
+                </div>
+
+                <div class="mt-4 p-3 rounded-3 studio-history-box d-none" id="prompt-history-box">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="studio-history-label"><i class="bi bi-clock-history me-1.5 text-teal"></i>Recent Prompts History</span>
+                        <a href="#" class="studio-history-clear" id="clear-history-btn">Clear</a>
+                    </div>
+                    <div class="d-flex flex-column gap-2" id="prompt-history-list"></div>
+                </div>
+            </div>
+
+            <!-- Cell 2: Creative Format Canvas -->
+            <div class="studio-card">
+                <div class="d-flex align-items-center gap-2 studio-card-header">
+                    <span class="text-teal"><i class="bi bi-palette-fill fs-5"></i></span>
+                    <h6 class="studio-section-title">2. Creative Format Canvas</h6>
+                </div>
+                
+                <div class="format-cards-grid">
+                    <div class="format-card card-blog active" data-format="blog">
+                        <div class="icon-wrapper"><i class="bi bi-journal-richtext"></i></div>
+                        <div>
+                            <div class="card-title fw-bold mb-1">SEO Blog Post</div>
+                            <div class="card-desc small">Deep-dive SEO articles &amp; guides</div>
+                        </div>
+                    </div>
+
+                    <div class="format-card card-email" data-format="email">
+                        <div class="icon-wrapper"><i class="bi bi-envelope-open"></i></div>
+                        <div>
+                            <div class="card-title fw-bold mb-1">Affiliate Email</div>
+                            <div class="card-desc small">High-converting newsletters &amp; promotions</div>
+                        </div>
+                    </div>
+
+                    <div class="format-card card-facebook" data-format="facebook_post">
+                        <div class="icon-wrapper"><i class="bi bi-facebook"></i></div>
+                        <div>
+                            <div class="card-title fw-bold mb-1">Facebook Post</div>
+                            <div class="card-desc small">Engaging feed updates &amp; caption hooks</div>
+                        </div>
+                    </div>
+
+                    <div class="format-card card-review" data-format="product_review">
+                        <div class="icon-wrapper"><i class="bi bi-star"></i></div>
+                        <div>
+                            <div class="card-title fw-bold mb-1">Product Review</div>
+                            <div class="card-desc small">Honest star-rated assessments</div>
+                        </div>
+                    </div>
+
+                    <div class="format-card card-carousel" data-format="carousel">
+                        <div class="icon-wrapper"><i class="bi bi-images"></i></div>
+                        <div>
+                            <div class="card-title fw-bold mb-1">Carousel Deck</div>
+                            <div class="card-desc small">Multi-slide LinkedIn &amp; IG scripts</div>
+                        </div>
+                    </div>
+
+                    <div class="format-card card-video" data-format="video_script">
+                        <div class="icon-wrapper"><i class="bi bi-film"></i></div>
+                        <div>
+                            <div class="card-title fw-bold mb-1">Video Script</div>
+                            <div class="card-desc small">TikTok, Reels, &amp; Shorts storyboards</div>
+                        </div>
+                    </div>
+
+                    <div class="format-card card-image" data-format="image_prompt">
+                        <div class="icon-wrapper"><i class="bi bi-image"></i></div>
+                        <div>
+                            <div class="card-title fw-bold mb-1">Image Prompt</div>
+                            <div class="card-desc small">Vivid Midjourney &amp; Stable Diffusion prompts</div>
+                        </div>
+                    </div>
+
+                    <div class="format-card card-ad" data-format="ad_copy">
+                        <div class="icon-wrapper"><i class="bi bi-megaphone"></i></div>
+                        <div>
+                            <div class="card-title fw-bold mb-1">Ad Copy</div>
+                            <div class="card-desc small">High-CTR search &amp; social ad packages</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right 1 Column: Sidebar controls -->
+        <div class="lg-span-1">
+            <div class="studio-card d-flex flex-column gap-3 position-sticky studio-sidebar-sticky">
+                <div class="d-flex align-items-center gap-2 studio-card-header">
+                    <span class="text-indigo"><i class="bi bi-sliders fs-5"></i></span>
+                    <h6 class="studio-section-title">3. Studio Controls</h6>
+                </div>
+                
+                <div>
+                    <label for="project_id" class="form-label-custom">Workspace Project *</label>
+                    <select name="project_id" id="project_id" class="form-select form-control-custom" required>
+                        <option value="" disabled {% if not selected_project_id %}selected{% endif %}>-- Select Workspace --</option>
+                        {% for project in projects %}
+                            <option value="{{ project.id }}" {% if selected_project_id == project.id %}selected{% endif %}>
+                                {{ project.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="campaign_id" class="form-label-custom">Campaign Association</label>
+                    <select name="campaign_id" id="campaign_id" class="form-select form-control-custom">
+                        <option value="">-- No Campaign --</option>
+                        {% for campaign in campaigns %}
+                            <option value="{{ campaign.id }}">{{ campaign.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="audience" class="form-label-custom">Target Audience *</label>
+                    <input type="text" name="audience" id="audience" class="form-control form-control-custom" required value="tech enthusiasts">
+                </div>
+
+                <div>
+                    <label for="tone" class="form-label-custom">Tone of Voice *</label>
+                    <input type="text" name="tone" id="tone" class="form-control form-control-custom" required value="informative">
+                </div>
+
+                <div>
+                    <label class="form-label-custom">AI Generation Model</label>
+                    <div class="segment-select">
+                        <button type="button" class="segment-btn active" data-value="gemini-1.5-flash">Flash</button>
+                        <button type="button" class="segment-btn" data-value="gemini-1.5-pro">Pro</button>
+                        <input type="hidden" name="model" id="model" value="gemini-1.5-flash">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label-custom">Target Content Length</label>
+                    <div class="segment-select">
+                        <button type="button" class="segment-btn" data-value="short">Short</button>
+                        <button type="button" class="segment-btn active" data-value="medium">Medium</button>
+                        <button type="button" class="segment-btn" data-value="long">Long</button>
+                        <input type="hidden" name="length" id="length" value="medium">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="cta" class="form-label-custom">Call to Action (CTA)</label>
+                    <select name="cta" id="cta" class="form-select form-control-custom">
+                        <option value="">None (Standard)</option>
+                        <option value="Learn More">Learn More</option>
+                        <option value="Buy Now">Buy Now</option>
+                        <option value="Sign Up">Sign Up</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-generate-masterpiece w-100 mt-2">
+                    <i class="bi bi-lightning-charge-fill"></i> Generate Masterpiece
+                </button>
+            </div>
+        </div>
+
+    </div>
+</form>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/content.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.format-card');
+        const selectType = document.getElementById('type');
+        
+        if (cards && selectType) {
+            cards.forEach(card => {
+                card.addEventListener('click', function() {
+                    cards.forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const format = this.getAttribute('data-format');
+                    selectType.value = format;
+                    selectType.dispatchEvent(new Event('change'));
+                });
+            });
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const queryType = urlParams.get('type');
+            if (queryType) {
+                const targetCard = document.querySelector(`.format-card[data-format="${queryType}"]`);
+                if (targetCard) targetCard.click();
+            }
+
+            const queryTopic = urlParams.get('topic');
+            if (queryTopic) {
+                const topicInput = document.getElementById('topic');
+                if (topicInput) topicInput.value = queryTopic;
+            }
+
+            const queryProjectId = urlParams.get('project_id');
+            if (queryProjectId) {
+                const projectSelect = document.getElementById('project_id');
+                if (projectSelect) projectSelect.value = queryProjectId;
+            }
+        }
+
+        const segmentBtns = document.querySelectorAll('.segment-btn');
+        segmentBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const parent = this.parentElement;
+                parent.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                const hiddenInput = parent.querySelector('input[type="hidden"]');
+                if (hiddenInput) hiddenInput.value = this.getAttribute('data-value');
+            });
+        });
+
+        const templateSelect = document.getElementById('prompt-template-select');
+        const toneInput = document.getElementById('tone');
+        const audienceInput = document.getElementById('audience');
+        const topicInput = document.getElementById('topic');
+        const productInput = document.getElementById('product_name');
+
+        if (templateSelect) {
+            templateSelect.addEventListener('change', function() {
+                const option = this.options[this.selectedIndex];
+                if (!option || !option.value) return;
+
+                const tone = option.getAttribute('data-tone');
+                const audience = option.getAttribute('data-audience');
+                let topic = option.getAttribute('data-topic');
+
+                if (tone && toneInput) toneInput.value = tone;
+                if (audience && audienceInput) audienceInput.value = audience;
+                
+                if (topic && topicInput) {
+                    const prodName = productInput ? productInput.value.trim() : "";
+                    if (prodName) topic = topic.replace(/\[Product Name\]/gi, prodName);
+                    topicInput.value = topic;
+                }
+            });
+        }
+
+        if (productInput) {
+            productInput.addEventListener('input', function() {
+                const prodName = this.value.trim();
+                const selectedOption = templateSelect ? templateSelect.options[templateSelect.selectedIndex] : null;
+                if (selectedOption && selectedOption.value) {
+                    let origTopic = selectedOption.getAttribute('data-topic');
+                    if (prodName && topicInput) {
+                        topicInput.value = origTopic.replace(/\[Product Name\]/gi, prodName);
+                    }
+                }
+            });
+        }
+
+        const historyBox = document.getElementById('prompt-history-box');
+        const historyList = document.getElementById('prompt-history-list');
+        const clearBtn = document.getElementById('clear-history-btn');
+
+        function loadPromptHistory() {
+            try {
+                const history = JSON.parse(localStorage.getItem('oplyra-prompt-history') || '[]');
+                if (history && history.length > 0 && historyList) {
+                    historyBox.classList.remove('d-none');
+                    historyList.innerHTML = '';
+                    history.slice(0, 3).forEach((item) => {
+                        const div = document.createElement('div');
+                        div.className = 'studio-history-item p-3 rounded-3';
+                        div.innerHTML = `
+                            <div class="d-flex justify-content-between studio-history-meta mb-1">
+                                <span class="text-uppercase fw-bold text-teal">${item.type}</span>
+                                <span>${item.time}</span>
+                            </div>
+                            <div class="studio-history-topic text-truncate fw-semibold">${item.topic || item.product_name}</div>
+                        `;
+                        div.addEventListener('click', function() {
+                            if (selectType) {
+                                selectType.value = item.type;
+                                const targetCard = document.querySelector(`.format-card[data-format="${item.type}"]`);
+                                if (targetCard) {
+                                    cards.forEach(c => c.classList.remove('active'));
+                                    targetCard.classList.add('active');
+                                }
+                                selectType.dispatchEvent(new Event('change'));
+                            }
+                            if (topicInput && item.topic) topicInput.value = item.topic;
+                            if (productInput && item.product_name) productInput.value = item.product_name;
+                            if (toneInput && item.tone) toneInput.value = item.tone;
+                            if (audienceInput && item.audience) audienceInput.value = item.audience;
+                            const keywordsInput = document.getElementById('keywords');
+                            if (keywordsInput && item.keywords) keywordsInput.value = item.keywords;
+                            const projectIdSelect = document.getElementById('project_id');
+                            if (projectIdSelect && item.project_id) projectIdSelect.value = item.project_id;
+                        });
+                        historyList.appendChild(div);
+                    });
+                } else if (historyBox) {
+                    historyBox.classList.add('d-none');
+                }
+            } catch (e) {
+                console.error("Failed to load prompt history:", e);
+            }
+        }
+
+        loadPromptHistory();
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                localStorage.removeItem('oplyra-prompt-history');
+                loadPromptHistory();
+            });
+        }
+
+        const genForm = document.getElementById('generate-form');
+        if (genForm) {
+            genForm.addEventListener('submit', function() {
+                try {
+                    const history = JSON.parse(localStorage.getItem('oplyra-prompt-history') || '[]');
+                    const keywordsVal = document.getElementById('keywords') ? document.getElementById('keywords').value : "";
+                    const newPrompt = {
+                        type: selectType ? selectType.value : "blog",
+                        topic: topicInput ? topicInput.value : "",
+                        product_name: productInput ? productInput.value : "",
+                        tone: toneInput ? toneInput.value : "informative",
+                        audience: audienceInput ? audienceInput.value : "tech enthusiasts",
+                        keywords: keywordsVal,
+                        project_id: document.getElementById('project_id') ? document.getElementById('project_id').value : "",
+                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    };
+                    
+                    const filtered = history.filter(h => h.topic !== newPrompt.topic || h.product_name !== newPrompt.product_name);
+                    filtered.unshift(newPrompt);
+                    localStorage.setItem('oplyra-prompt-history', JSON.stringify(filtered.slice(0, 10)));
+                } catch (e) {
+                    console.error("Failed to save prompt to history:", e);
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

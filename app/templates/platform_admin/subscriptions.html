@@ -1,0 +1,71 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Subscriptions · Platform Admin{% endblock %}
+{% block page_title %}Subscriptions{% endblock %}
+{% block content %}
+<div class="pa-kpi-grid mb-3">
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">MRR</div><div class="pa-metric-value pa-kpi-value">${{ '%.2f'|format(data.mrr) }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">ARR</div><div class="pa-metric-value pa-kpi-value">${{ '%.2f'|format(data.arr) }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Paid</div><div class="pa-metric-value pa-kpi-value">{{ data.paid }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Trials</div><div class="pa-metric-value pa-kpi-value">{{ data.trial }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Cancelled</div><div class="pa-metric-value pa-kpi-value">{{ data.cancelled }}</div></div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="glass-card pa-panel">
+            <h3>Plans</h3>
+            <div class="table-responsive">
+                <table class="table table-custom pa-table mb-0">
+                    <thead><tr><th>Plan</th><th>Price / mo</th><th>Seats</th><th>Orgs (tier)</th></tr></thead>
+                    <tbody>
+                        {% if data.plans %}
+                            {% for plan in data.plans %}
+                            <tr>
+                                <td>{{ plan.name }}</td>
+                                <td>${{ '%.2f'|format(plan.price_monthly or 0) }}</td>
+                                <td>{{ plan.team_seats_limit }}</td>
+                                <td>{{ data.tier_counts.get(plan.name|lower, 0) }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            {% for tier, count in data.tier_counts.items() %}
+                            <tr>
+                                <td>{{ tier|title }}</td>
+                                <td>—</td>
+                                <td>—</td>
+                                <td>{{ count }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-secondary">No plan rows yet — org plan_tier counts shown when available.</td></tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="small text-secondary mb-0">Free · Pro · Enterprise map to existing Plan / Organization.plan_tier records.</p>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="glass-card pa-panel">
+            <h3>Active subscriptions</h3>
+            <div class="table-responsive">
+                <table class="table table-custom pa-table mb-0">
+                    <thead><tr><th>Org</th><th>Plan</th><th>Status</th><th>Period end</th></tr></thead>
+                    <tbody>
+                        {% for sub, plan, org in data.subs %}
+                        <tr>
+                            <td>{{ org.name }}</td>
+                            <td>{{ plan.name }}</td>
+                            <td>{{ sub.status }}</td>
+                            <td>{{ sub.current_period_end.strftime('%Y-%m-%d') if sub.current_period_end else '—' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-secondary">No Subscription rows. Revenue falls back to organization plan tiers.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Connected Apps — Oplyra{% endblock %}
+
+{% block content %}
+<div class="integrations-page">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb mb-0" style="font-size: 0.75rem;">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}#panel-settings" class="text-secondary text-decoration-none">Settings</a></li>
+                    <li class="breadcrumb-item active text-white" aria-current="page">Connected Apps</li>
+                </ol>
+            </nav>
+            <h1 class="text-white mb-1 h4"><i class="bi bi-plug-fill text-indigo me-2"></i>Connected Apps</h1>
+            <p class="text-secondary mb-0 small">Read-only connections to marketing platforms. Sync manually — nothing is auto-published or edited.</p>
+        </div>
+        {% if mock_mode %}
+        <span class="badge bg-warning bg-opacity-15 text-warning border border-warning border-opacity-30 px-3 py-2">
+            <i class="bi bi-bug me-1"></i>Mock Mode — OAuth credentials not configured
+        </span>
+        {% endif %}
+    </div>
+
+    <div class="row g-3 mb-4">
+        {% for provider in supported_providers %}
+        {% set conn = connections | selectattr('provider', 'equalto', provider) | selectattr('status', 'ne', 'disconnected') | list | first %}
+        <div class="col-md-6">
+            <div class="glass-card p-4 h-100" id="integration-card-{{ provider }}">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="text-white mb-1">{{ provider_labels[provider] }}</h5>
+                        <p class="text-muted small mb-0">{{ provider_descriptions[provider] }}</p>
+                    </div>
+                    {% if conn %}
+                    <span class="badge {% if conn.status == 'connected' %}bg-success{% elif conn.status == 'error' %}bg-danger{% else %}bg-secondary{% endif %} bg-opacity-15 text-uppercase" style="font-size: 0.65rem;">
+                        {{ conn.status }}
+                    </span>
+                    {% else %}
+                    <span class="badge bg-secondary bg-opacity-15 text-secondary text-uppercase" style="font-size: 0.65rem;">Not connected</span>
+                    {% endif %}
+                </div>
+
+                {% if conn %}
+                <div class="mb-3 small">
+                    <div class="d-flex justify-content-between text-secondary mb-1">
+                        <span>Account</span>
+                        <span class="text-white">{{ conn.external_account_name }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between text-secondary mb-1">
+                        <span>Last Sync</span>
+                        <span class="text-white" id="last-sync-{{ conn.id }}">
+                            {% if conn.last_sync_at %}{{ conn.last_sync_at.strftime('%b %d, %Y %H:%M') }} UTC{% else %}Never{% endif %}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between text-secondary">
+                        <span>Sync Status</span>
+                        <span class="{% if conn.last_sync_status == 'success' %}text-success{% elif conn.last_sync_status == 'error' %}text-danger{% else %}text-muted{% endif %}" id="sync-status-{{ conn.id }}">
+                            {{ conn.last_sync_status or '—' }}
+                        </span>
+                    </div>
+                    {% if conn.last_sync_error %}
+                    <p class="text-danger small mt-2 mb-0" id="sync-error-{{ conn.id }}">{{ conn.last_sync_error }}</p>
+                    {% endif %}
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-indigo-custom btn-sm sync-btn" data-connection-id="{{ conn.id }}">
+                        <i class="bi bi-arrow-repeat me-1"></i>Sync Now
+                    </button>
+                    <a href="{{ url_for('integrations.select_property', connection_id=conn.id) }}" class="btn btn-secondary-custom btn-sm">
+                        <i class="bi bi-building me-1"></i>Change Property
+                    </a>
+                    <form action="{{ url_for('integrations.disconnect', connection_id=conn.id) }}" method="POST" class="d-inline disconnect-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">Disconnect</button>
+                    </form>
+                </div>
+                {% else %}
+                <form action="{{ url_for('integrations.connect_provider', provider=provider) }}" method="GET" class="connect-form">
+                    <div class="mb-3">
+                        <label class="form-label-custom small">Link to Client (optional)</label>
+                        <select name="project_id" class="form-select form-control-custom form-control-sm">
+                            <option value="">— No client —</option>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary-custom btn-sm">
+                        <i class="bi bi-link-45deg me-1"></i>Connect
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% set active_connections = connections | selectattr('status', 'ne', 'disconnected') | list %}
+    {% if active_connections %}
+    <div class="glass-card p-4">
+        <h5 class="text-white mb-1"><i class="bi bi-download text-teal me-2"></i>Campaign Import</h5>
+        <p class="text-muted small mb-3">Import synced campaigns into a Client portfolio. Each external campaign can only be imported once.</p>
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label-custom small">Connection</label>
+                <select id="import-connection" class="form-select form-control-custom form-control-sm">
+                    {% for c in active_connections %}
+                    <option value="{{ c.id }}">{{ provider_labels[c.provider] }} — {{ c.external_account_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label-custom small">External Campaign</label>
+                <select id="import-external" class="form-select form-control-custom form-control-sm">
+                    <option value="">Select after sync…</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label-custom small">Target Client</label>
+                <select id="import-project" class="form-select form-control-custom form-control-sm">
+                    {% for p in projects %}
+                    <option value="{{ p.id }}">{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="button" id="import-btn" class="btn btn-indigo-custom btn-sm w-100" disabled>
+                    <i class="bi bi-box-arrow-in-down me-1"></i>Import Campaign
+                </button>
+            </div>
+        </div>
+        <div id="import-result" class="mt-3 small" aria-live="polite"></div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    window.OPLYRA_INTEGRATIONS = {
+        csrfToken: {{ csrf_token() | tojson }},
+        connections: {{ connection_payload | tojson }}
+    };
+</script>
+<script src="{{ url_for('static', filename='js/integrations.js') }}"></script>
+{% endblock %}

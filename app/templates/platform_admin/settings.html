@@ -1,0 +1,44 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Settings · Platform Admin{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block content %}
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="glass-card pa-panel">
+            <h3>Platform settings (read-only)</h3>
+            <ul class="pa-list">
+                <li><span>Default AI provider</span><strong>{{ cfg.default_ai_provider }}</strong></li>
+                <li><span>Default Gemini model</span><strong>{{ cfg.gemini_model }}</strong></li>
+                <li><span>Storage provider</span><strong>{{ cfg.storage_provider }}</strong></li>
+                <li><span>Vector provider</span><strong>{{ cfg.vector_provider }}</strong></li>
+                <li><span>Embedding provider</span><strong>{{ cfg.embedding_provider }}</strong></li>
+                <li><span>Redis</span><strong>{{ cfg.redis_url }}</strong></li>
+                <li><span>Queue (Celery eager)</span><strong>{{ cfg.celery_eager }}</strong></li>
+                <li><span>Structured logging</span><strong>{{ cfg.structured_logging }}</strong></li>
+                <li><span>Admin allowlist size</span><strong>{{ cfg.platform_admins }}</strong></li>
+            </ul>
+            <p class="small text-secondary mb-0 mt-2">
+                Values come from environment / Flask config. Change via deployment env — this panel does not mutate secrets.
+            </p>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="glass-card pa-panel">
+            <h3>Provider feature flags (config)</h3>
+            <ul class="pa-list">
+                {% for name, val in providers_enabled.items() %}
+                <li><span>{{ name }}</span><strong>{{ val }}</strong></li>
+                {% endfor %}
+            </ul>
+            <a class="btn btn-secondary-custom btn-sm mt-2" href="{{ url_for('platform_admin.feature_flags') }}">Runtime feature flags</a>
+            <a class="btn btn-secondary-custom btn-sm mt-2" href="{{ url_for('platform_admin.ai_providers') }}">AI providers</a>
+        </div>
+        <div class="glass-card pa-panel mt-3">
+            <h3>Email settings</h3>
+            <p class="text-secondary small mb-0">
+                Password reset uses existing auth tokens. SMTP / transactional email remains an environment concern — not exposed in the customer app.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Agents · Platform Admin{% endblock %}
+{% block page_title %}Agents{% endblock %}
+{% block content %}
+<div class="pa-kpi-grid mb-3">
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Runs (7d)</div><div class="pa-metric-value pa-kpi-value">{{ data.runs_7d }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Success rate</div><div class="pa-metric-value pa-kpi-value">{{ data.success_rate }}%</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Failures</div><div class="pa-metric-value pa-kpi-value">{{ data.failures }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Avg execution</div><div class="pa-metric-value pa-kpi-value">{{ data.avg_seconds }}<span class="pa-kpi-unit">s</span></div></div>
+</div>
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="glass-card pa-panel">
+            <h3>Most used agents</h3>
+            <ul class="pa-list">
+                {% for key, count in data.top_agents %}
+                <li><span>{{ key }}</span><strong>{{ count }}</strong></li>
+                {% else %}
+                <li><span class="text-secondary">No runs</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="glass-card pa-panel mt-3">
+            <h3>Catalog</h3>
+            <ul class="pa-list">
+                {% for a in data.catalog %}
+                <li><span>{{ a.name }}</span><strong>{% if a.is_active %}active{% else %}off{% endif %}</strong></li>
+                {% else %}
+                <li><span class="text-secondary">No agent definitions</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="glass-card pa-panel">
+            <h3>Recent executions</h3>
+            <div class="table-responsive">
+                <table class="table table-custom pa-table mb-0">
+                    <thead><tr><th>ID</th><th>User</th><th>Mode</th><th>Agent</th><th>Status</th><th>When</th></tr></thead>
+                    <tbody>
+                        {% for r in data.recent %}
+                        <tr>
+                            <td>{{ r.id }}</td>
+                            <td>{{ r.user_id }}</td>
+                            <td>{{ r.mode }}</td>
+                            <td>{{ r.agent_key or '—' }}</td>
+                            <td>{{ r.status }}</td>
+                            <td>{{ r.created_at.strftime('%m-%d %H:%M') if r.created_at else '—' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="text-secondary">No executions.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

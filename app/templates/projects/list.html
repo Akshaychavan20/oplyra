@@ -1,0 +1,467 @@
+{% extends "base.html" %}
+
+{% block title %}Clients - Oplyra{% endblock %}
+
+{% block content %}
+{% set has_status_filter = favorites_only or archived_only or pinned_only %}
+<div class="projects-page clients-crm">
+    <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-3 border-theme-subtle flex-wrap gap-3">
+        <div>
+            <h2 class="text-white text-md fw-bold mb-0">Clients</h2>
+            <p class="text-secondary text-xs mb-0">Your client CRM — campaigns, files, knowledge, and AI in one place.</p>
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary-custom px-4 py-1.5 rounded-pill" data-bs-toggle="modal" data-bs-target="#createProjectModal">
+                <i class="bi bi-plus-circle me-1.5"></i>Add Client
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-3 col-lg-4 col-md-12">
+            <div class="glass-card projects-folders-panel mb-4">
+                <div class="projects-folders-header">
+                    <div class="projects-folders-header-title">
+                        <i class="bi bi-folder-fill" aria-hidden="true"></i>
+                        <h6 class="projects-folders-title">Folders</h6>
+                    </div>
+                    <button type="button" class="projects-folders-add-btn" data-bs-toggle="modal" data-bs-target="#createFolderModal" title="Create folder" aria-label="Create folder">
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <nav class="projects-folders-list" aria-label="Client folders">
+                    <a href="{{ url_for('projects.projects_status', q=search_query, sort=sort) }}"
+                       class="projects-folder-item{% if not selected_folder and not has_status_filter %} is-active{% endif %}"
+                       {% if not selected_folder and not has_status_filter %}aria-current="page"{% endif %}>
+                        <span class="projects-folder-icon is-default" aria-hidden="true">
+                            <i class="bi bi-folder2-open"></i>
+                        </span>
+                        <span class="projects-folder-text">
+                            <span class="projects-folder-name">All active clients</span>
+                            <span class="projects-folder-meta">Clear filters</span>
+                        </span>
+                        <span class="projects-folder-indicator" aria-hidden="true">
+                            <i class="bi bi-check-lg"></i>
+                        </span>
+                    </a>
+
+                    {% if folders %}
+                        {% for folder in folders %}
+                            <div class="projects-folder-row{% if selected_folder == folder.id %} is-active{% endif %}">
+                                <a href="{{ url_for('projects.projects_status', folder_id=folder.id, q=search_query, sort=sort) }}"
+                                   class="projects-folder-item"
+                                   {% if selected_folder == folder.id %}aria-current="page"{% endif %}>
+                                    <span class="projects-folder-icon" aria-hidden="true">
+                                        <i class="bi bi-folder-fill"></i>
+                                    </span>
+                                    <span class="projects-folder-text">
+                                        <span class="projects-folder-name">{{ folder.name }}</span>
+                                        <span class="projects-folder-meta">Folder</span>
+                                    </span>
+                                    <span class="projects-folder-indicator" aria-hidden="true">
+                                        <i class="bi bi-check-lg"></i>
+                                    </span>
+                                </a>
+                                <form action="{{ url_for('projects.delete_folder', folder_id=folder.id) }}" method="POST" class="projects-folder-delete-form" onsubmit="return confirm('Delete this folder? Clients inside will not be deleted.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="projects-folder-delete-btn" title="Delete folder" aria-label="Delete folder {{ folder.name }}">
+                                        <i class="bi bi-trash3" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </nav>
+
+                {% if not folders %}
+                    <div class="projects-folders-empty">
+                        <i class="bi bi-folder-plus" aria-hidden="true"></i>
+                        <p>No folders yet. Create one to organize clients.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="glass-card projects-status-filter">
+                <div class="projects-status-filter-header">
+                    <i class="bi bi-sliders" aria-hidden="true"></i>
+                    <h6 class="projects-status-filter-title">Status</h6>
+                </div>
+                <nav class="projects-status-segment" aria-label="Filter clients by status">
+                    <a href="{{ url_for('projects.projects_status', pinned='true', folder_id=selected_folder, q=search_query, sort=sort) }}"
+                       class="projects-status-segment-item filter-pinned{% if pinned_only %} is-active{% endif %}"
+                       {% if pinned_only %}aria-current="page"{% endif %}>
+                        <span class="projects-status-segment-icon" aria-hidden="true"><i class="bi bi-pin-angle-fill"></i></span>
+                        <span class="projects-status-segment-label">Pinned</span>
+                        <span class="projects-status-segment-indicator" aria-hidden="true"><i class="bi bi-check-lg"></i></span>
+                    </a>
+                    <a href="{{ url_for('projects.projects_status', favorites='true', folder_id=selected_folder, q=search_query, sort=sort) }}"
+                       class="projects-status-segment-item filter-favorites{% if favorites_only %} is-active{% endif %}"
+                       {% if favorites_only %}aria-current="page"{% endif %}>
+                        <span class="projects-status-segment-icon" aria-hidden="true"><i class="bi bi-heart-fill"></i></span>
+                        <span class="projects-status-segment-label">Favorites</span>
+                        <span class="projects-status-segment-indicator" aria-hidden="true"><i class="bi bi-check-lg"></i></span>
+                    </a>
+                    <a href="{{ url_for('projects.projects_status', archived='true', folder_id=selected_folder, q=search_query, sort=sort) }}"
+                       class="projects-status-segment-item filter-archived{% if archived_only %} is-active{% endif %}"
+                       {% if archived_only %}aria-current="page"{% endif %}>
+                        <span class="projects-status-segment-icon" aria-hidden="true"><i class="bi bi-archive-fill"></i></span>
+                        <span class="projects-status-segment-label">Archived</span>
+                        <span class="projects-status-segment-indicator" aria-hidden="true"><i class="bi bi-check-lg"></i></span>
+                    </a>
+                </nav>
+                {% if has_status_filter or selected_folder or search_query %}
+                <div class="px-3 pb-3">
+                    <a href="{{ url_for('projects.projects_status') }}" class="btn btn-secondary-custom btn-sm w-100">Clear all filters</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-xl-9 col-lg-8 col-md-12">
+            <div class="glass-card p-3 mb-4">
+                <form method="GET" action="{{ url_for('projects.projects_status') }}" id="clients-search-form">
+                    <input type="hidden" name="folder_id" value="{{ selected_folder or '' }}">
+                    <input type="hidden" name="favorites" value="{% if favorites_only %}true{% endif %}">
+                    <input type="hidden" name="archived" value="{% if archived_only %}true{% endif %}">
+                    <input type="hidden" name="pinned" value="{% if pinned_only %}true{% endif %}">
+
+                    <div class="row g-2 align-items-center">
+                        <div class="col flex-grow-1">
+                            <div class="projects-search-wrap">
+                                <i class="bi bi-search projects-search-icon" aria-hidden="true"></i>
+                                <input type="search" name="q" id="project-search" class="form-control form-control-custom projects-search-input" placeholder="Search clients…" value="{{ search_query }}" autocomplete="off" spellcheck="false" aria-label="Search clients by name or description">
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <label class="visually-hidden" for="clients-sort">Sort</label>
+                            <select name="sort" id="clients-sort" class="form-select form-control-custom" style="min-width:140px;font-size:0.8rem;" onchange="this.form.submit()" aria-label="Sort clients">
+                                <option value="updated" {% if sort == 'updated' %}selected{% endif %}>Recent</option>
+                                <option value="name" {% if sort == 'name' %}selected{% endif %}>Name A–Z</option>
+                                <option value="name_desc" {% if sort == 'name_desc' %}selected{% endif %}>Name Z–A</option>
+                                <option value="created" {% if sort == 'created' %}selected{% endif %}>Newest created</option>
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <div class="btn-group clients-view-toggle" role="group" aria-label="View mode">
+                                <button type="button" class="btn btn-secondary-custom btn-sm is-active" id="clients-view-cards" aria-pressed="true" title="Card view">
+                                    <i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-secondary-custom btn-sm" id="clients-view-table" aria-pressed="false" title="Table view">
+                                    <i class="bi bi-list-ul" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-secondary-custom py-2 text-xs font-semibold px-4">Search</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Card grid -->
+            <div class="row g-4 projects-card-grid" id="project-card-grid" data-view="cards">
+                {% if projects %}
+                    {% for project in projects %}
+                        <div class="col-xl-4 col-md-6 col-sm-12 project-card-item"
+                             data-name="{{ project.name|lower }}"
+                             data-updated="{{ project.updated_at.isoformat() if project.updated_at else '' }}"
+                             data-campaigns="{{ project.campaigns|length }}"
+                             data-contents="{{ project.contents|length }}">
+                            <article class="project-card-custom {% if project.is_pinned %}pinned-state{% endif %}">
+                                <header class="project-card-custom-header">
+                                    <span class="project-card-custom-badge">
+                                        <i class="bi bi-megaphone" aria-hidden="true"></i>
+                                        <span>{{ project.campaigns|length }} campaigns</span>
+                                    </span>
+                                    <div class="project-card-custom-header-actions">
+                                        <button type="button" class="action-btn-pill {% if project.is_pinned %}active-pin{% endif %}" onclick="toggleProjectPin({{ project.id }}, this)" title="Pin client" aria-label="Pin client" aria-pressed="{{ 'true' if project.is_pinned else 'false' }}">
+                                            <i class="bi bi-pin-angle-fill" aria-hidden="true"></i>
+                                        </button>
+                                        <button type="button" class="action-btn-pill {% if project.is_favorite %}active-fav{% endif %}" onclick="toggleProjectFav({{ project.id }}, this)" title="Favorite" aria-label="Favorite client" aria-pressed="{{ 'true' if project.is_favorite else 'false' }}">
+                                            <i class="bi bi-heart-fill" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                </header>
+
+                                <div class="project-card-custom-body">
+                                    <div class="project-card-custom-title-row">
+                                        <span class="project-card-custom-title-icon" aria-hidden="true">
+                                            <i class="bi bi-briefcase-fill"></i>
+                                        </span>
+                                        <h3 class="project-card-custom-title" title="{{ project.name }}">{{ project.name }}</h3>
+                                    </div>
+                                    <p class="project-card-custom-description">
+                                        {{ project.description or 'Add a short description so you remember this client at a glance.' }}
+                                    </p>
+                                    {% if project.category or project.tags %}
+                                    <div class="clients-card-tags">
+                                        {% if project.category %}<span class="clients-tag">{{ project.category }}</span>{% endif %}
+                                        {% if project.tags %}
+                                            {% for tag in project.tags.split(',')[:3] %}
+                                                {% if tag.strip() %}<span class="clients-tag">{{ tag.strip() }}</span>{% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="project-card-custom-meta">
+                                    <i class="bi bi-clock-history" aria-hidden="true"></i>
+                                    <span>Updated {{ project.updated_at.strftime('%b %d, %Y') }}</span>
+                                    <span class="ms-auto text-secondary">{{ project.contents|length }} content</span>
+                                </div>
+
+                                <footer class="project-card-custom-footer">
+                                    <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="btn btn-secondary-custom project-card-custom-open-btn">
+                                        <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+                                        <span>Open</span>
+                                    </a>
+
+                                    <div class="project-card-custom-footer-actions">
+                                        <form action="{{ url_for('projects.duplicate_project', project_id=project.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Duplicate this client and nested campaigns, content, tasks, and notes?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="action-btn-pill" title="Duplicate client" aria-label="Duplicate client">
+                                                <i class="bi bi-files" aria-hidden="true"></i>
+                                            </button>
+                                        </form>
+
+                                        <button type="button" class="action-btn-pill" onclick="toggleProjectArchive({{ project.id }}, this)" title="{% if project.is_archived %}Restore client{% else %}Archive client{% endif %}" aria-label="{% if project.is_archived %}Restore client{% else %}Archive client{% endif %}">
+                                            <i class="bi {% if project.is_archived %}bi-arrow-counterclockwise{% else %}bi-archive{% endif %}" aria-hidden="true"></i>
+                                        </button>
+
+                                        <button type="button" class="action-btn-pill" data-bs-toggle="modal" data-bs-target="#editProjectModal"
+                                                data-bs-id="{{ project.id }}" data-bs-name="{{ project.name }}" data-bs-description="{{ project.description or '' }}" title="Edit client" aria-label="Edit client">
+                                            <i class="bi bi-pencil-fill" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                </footer>
+                            </article>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="col-12 text-center py-5">
+                        <div class="glass-card p-5 mx-auto clients-empty" style="max-width: 480px;">
+                            <i class="bi bi-briefcase text-secondary display-4 mb-3 d-block" aria-hidden="true"></i>
+                            <h5 class="text-white fw-bold mb-2">No clients yet</h5>
+                            <p class="text-secondary text-xs mb-4">Create your first client to organize campaigns, files, and AI work in one profile.</p>
+                            <button type="button" class="btn btn-primary-custom btn-sm px-4 py-2" data-bs-toggle="modal" data-bs-target="#createProjectModal">
+                                <i class="bi bi-plus-circle me-1.5"></i>Add Client
+                            </button>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Table view (same data, toggled) -->
+            {% if projects %}
+            <div class="glass-card clients-table-wrap d-none" id="clients-table-wrap">
+                <div class="table-responsive">
+                    <table class="table clients-table mb-0" aria-label="Clients table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Client</th>
+                                <th scope="col">Campaigns</th>
+                                <th scope="col">Content</th>
+                                <th scope="col">Updated</th>
+                                <th scope="col" class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for project in projects %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="clients-table-name">
+                                        {% if project.is_pinned %}<i class="bi bi-pin-angle-fill text-indigo me-1" aria-hidden="true"></i>{% endif %}
+                                        {{ project.name }}
+                                    </a>
+                                    {% if project.description %}
+                                    <div class="clients-table-desc">{{ project.description[:80] }}{% if project.description|length > 80 %}…{% endif %}</div>
+                                    {% endif %}
+                                </td>
+                                <td>{{ project.campaigns|length }}</td>
+                                <td>{{ project.contents|length }}</td>
+                                <td>{{ project.updated_at.strftime('%b %d, %Y') }}</td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="btn btn-secondary-custom btn-sm py-0 px-2">Open</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pagination and pagination.pages > 1 %}
+                <nav aria-label="Clients pagination" class="mt-5">
+                    <ul class="pagination justify-content-center pagination-custom">
+                        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('projects.projects_status', page=pagination.prev_num, q=search_query, folder_id=selected_folder, favorites=favorites_only, archived=archived_only, pinned=pinned_only, sort=sort) }}" tabindex="-1"><i class="bi bi-chevron-left"></i></a>
+                        </li>
+                        {% for page_num in pagination.iter_pages() %}
+                            {% if page_num %}
+                                <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                                    <a class="page-link" href="{{ url_for('projects.projects_status', page=page_num, q=search_query, folder_id=selected_folder, favorites=favorites_only, archived=archived_only, pinned=pinned_only, sort=sort) }}">{{ page_num }}</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                            {% endif %}
+                        {% endfor %}
+                        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('projects.projects_status', page=pagination.next_num, q=search_query, folder_id=selected_folder, favorites=favorites_only, archived=archived_only, pinned=pinned_only, sort=sort) }}"><i class="bi bi-chevron-right"></i></a>
+                        </li>
+                    </ul>
+                </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createFolderModal" tabindex="-1" aria-labelledby="createFolderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dark-custom" style="max-width: 400px;">
+        <div class="modal-content glass-card glass-modal p-3">
+            <div class="modal-header border-0 pb-1.5">
+                <h5 class="modal-title text-white text-xs font-bold uppercase tracking-wider" id="createFolderModalLabel">New folder</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('projects.create_folder') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body py-3">
+                    <div class="mb-3">
+                        <label for="folder-name" class="form-label-custom">Folder name *</label>
+                        <input type="text" name="name" id="folder-name" class="form-control form-control-custom text-xs" required placeholder="e.g. SEO clients, Tech startups">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-1.5 gap-2">
+                    <button type="button" class="btn btn-secondary-custom py-1.5 px-3 text-xs" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom py-1.5 px-4 text-xs font-semibold">Create folder</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editProjectModal" tabindex="-1" aria-labelledby="editProjectModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dark-custom">
+        <div class="modal-content glass-card glass-modal p-3">
+            <div class="modal-header border-0 pb-1.5">
+                <h5 class="modal-title text-white text-xs font-bold uppercase tracking-wider" id="editProjectModalLabel"><i class="bi bi-pencil text-indigo me-2"></i>Edit client</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="edit-project-form" action="" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body py-3">
+                    <div class="mb-3">
+                        <label for="edit-name" class="form-label-custom">Client name *</label>
+                        <input type="text" name="name" id="edit-name" class="form-control form-control-custom text-xs" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-description" class="form-label-custom">Description (optional)</label>
+                        <textarea name="description" id="edit-description" rows="3" class="form-control form-control-custom text-xs"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-1.5 gap-2">
+                    <button type="button" class="btn btn-secondary-custom py-1.5 px-3 text-xs" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom py-1.5 px-4 text-xs font-semibold">Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleProjectPin(id, button) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        fetch(`/clients/${id}/toggle-pin`, { method: 'POST', headers: { 'X-CSRF-Token': csrfToken } })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                button.classList.toggle('active-pin', data.is_pinned);
+                button.setAttribute('aria-pressed', data.is_pinned ? 'true' : 'false');
+                showToast(data.is_pinned ? "Client pinned." : "Pin removed.", data.is_pinned ? "success" : "info");
+            } else {
+                showToast("Failed to toggle pin.", "danger");
+            }
+        })
+        .catch(() => showToast("Network error occurred.", "danger"));
+    }
+
+    function toggleProjectFav(id, button) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        fetch(`/clients/${id}/toggle-favorite`, { method: 'POST', headers: { 'X-CSRF-Token': csrfToken } })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                button.classList.toggle('active-fav', data.is_favorite);
+                button.setAttribute('aria-pressed', data.is_favorite ? 'true' : 'false');
+                showToast(data.is_favorite ? "Added to favorites." : "Removed from favorites.", "success");
+            } else {
+                showToast("Failed to toggle favorite.", "danger");
+            }
+        })
+        .catch(() => showToast("Network error occurred.", "danger"));
+    }
+
+    function toggleProjectArchive(id) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        fetch(`/clients/${id}/toggle-archive`, { method: 'POST', headers: { 'X-CSRF-Token': csrfToken } })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.is_archived ? "Client archived." : "Client restored.", "success");
+                setTimeout(() => window.location.reload(), 700);
+            } else {
+                showToast("Failed to update archive status.", "danger");
+            }
+        })
+        .catch(() => showToast("Network error occurred.", "danger"));
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const editModal = document.getElementById('editProjectModal');
+        if (editModal) {
+            editModal.addEventListener('show.bs.modal', function(event) {
+                const btn = event.relatedTarget;
+                if (!btn) return;
+                const form = editModal.querySelector('#edit-project-form');
+                form.action = `/clients/${btn.getAttribute('data-bs-id')}/edit`;
+                editModal.querySelector('#edit-name').value = btn.getAttribute('data-bs-name') || '';
+                editModal.querySelector('#edit-description').value = btn.getAttribute('data-bs-description') || '';
+            });
+        }
+
+        const grid = document.getElementById('project-card-grid');
+        const tableWrap = document.getElementById('clients-table-wrap');
+        const btnCards = document.getElementById('clients-view-cards');
+        const btnTable = document.getElementById('clients-view-table');
+        const key = 'oplyra-clients-view';
+
+        function setView(mode) {
+            if (!grid) return;
+            const isTable = mode === 'table';
+            grid.classList.toggle('d-none', isTable);
+            if (tableWrap) tableWrap.classList.toggle('d-none', !isTable);
+            if (btnCards) {
+                btnCards.classList.toggle('is-active', !isTable);
+                btnCards.setAttribute('aria-pressed', (!isTable).toString());
+            }
+            if (btnTable) {
+                btnTable.classList.toggle('is-active', isTable);
+                btnTable.setAttribute('aria-pressed', isTable.toString());
+            }
+            try { localStorage.setItem(key, mode); } catch (e) {}
+        }
+
+        if (btnCards) btnCards.addEventListener('click', function() { setView('cards'); });
+        if (btnTable) btnTable.addEventListener('click', function() { setView('table'); });
+        try {
+            const saved = localStorage.getItem(key);
+            if (saved === 'table' || saved === 'cards') setView(saved);
+        } catch (e) {}
+    });
+</script>
+<script src="{{ url_for('static', filename='js/projects.js') }}"></script>
+{% endblock %}

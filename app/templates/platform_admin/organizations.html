@@ -1,0 +1,26 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Organizations · Platform Admin{% endblock %}
+{% block page_title %}Organizations{% endblock %}
+{% block content %}
+<div class="glass-card pa-panel">
+    <div class="table-responsive">
+        <table class="table table-custom pa-table mb-0">
+            <thead>
+                <tr><th>ID</th><th>Name</th><th>Plan</th><th>Created</th></tr>
+            </thead>
+            <tbody>
+                {% for o in orgs %}
+                <tr>
+                    <td>{{ o.id }}</td>
+                    <td>{{ o.name }}</td>
+                    <td>{{ o.plan_tier }}</td>
+                    <td>{{ o.created_at.strftime('%Y-%m-%d') if o.created_at else '—' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-secondary">No organizations.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

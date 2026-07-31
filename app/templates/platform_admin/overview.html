@@ -1,0 +1,178 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Overview · Platform Admin{% endblock %}
+{% block page_title %}Overview{% endblock %}
+{% block page_subtitle %}
+<p>Executive snapshot of revenue, growth, AI usage, and platform health.</p>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-secondary-custom btn-sm" href="{{ url_for('platform_admin.monitoring') }}"><i class="bi bi-activity me-1"></i>Health</a>
+<a class="btn btn-primary-custom btn-sm" href="{{ url_for('platform_admin.users') }}"><i class="bi bi-people me-1"></i>Users</a>
+{% endblock %}
+{% block content %}
+
+{# Primary executive KPIs #}
+<div class="pa-metric-grid mb-3">
+    <div class="glass-card pa-metric">
+        <i class="bi bi-currency-dollar pa-metric-icon"></i>
+        <div class="pa-metric-label">MRR</div>
+        <div class="pa-metric-value" data-count="{{ '%.2f'|format(stats.mrr) }}" data-prefix="$" data-decimals="2">$0</div>
+        <div class="pa-metric-sub">Monthly recurring</div>
+    </div>
+    <div class="glass-card pa-metric">
+        <i class="bi bi-graph-up-arrow pa-metric-icon"></i>
+        <div class="pa-metric-label">ARR</div>
+        <div class="pa-metric-value" data-count="{{ '%.2f'|format(stats.arr) }}" data-prefix="$" data-decimals="2">$0</div>
+        <div class="pa-metric-sub">Annualized</div>
+    </div>
+    <div class="glass-card pa-metric">
+        <i class="bi bi-people pa-metric-icon"></i>
+        <div class="pa-metric-label">Total Users</div>
+        <div class="pa-metric-value" data-count="{{ stats.total_users }}">0</div>
+        <div class="pa-metric-sub">{{ stats.active_users }} active · 7d</div>
+    </div>
+    <div class="glass-card pa-metric">
+        <i class="bi bi-heart-pulse pa-metric-icon"></i>
+        <div class="pa-metric-label">Platform Health</div>
+        <div class="pa-metric-value" style="font-size:1.05rem;">
+            <span class="pa-pulse {% if not stats.health.ok %}is-warn{% endif %}"></span>
+            {{ stats.health.status }}
+        </div>
+        <div class="pa-metric-sub">Live probes</div>
+    </div>
+</div>
+
+{# Secondary density metrics #}
+<div class="pa-metric-grid pa-metric-grid-dense mb-3">
+    <div class="glass-card pa-metric">
+        <div class="pa-metric-label">New Signups (7d)</div>
+        <div class="pa-metric-value" data-count="{{ stats.new_signups }}">0</div>
+    </div>
+    <div class="glass-card pa-metric">
+        <div class="pa-metric-label">Paid Orgs</div>
+        <div class="pa-metric-value" data-count="{{ stats.paid_users }}">0</div>
+        <div class="pa-metric-sub">{{ stats.free_users }} free</div>
+    </div>
+    <div class="glass-card pa-metric">
+        <div class="pa-metric-label">AI Requests Today</div>
+        <div class="pa-metric-value" data-count="{{ stats.ai_requests_today }}">0</div>
+    </div>
+    <div class="glass-card pa-metric">
+        <div class="pa-metric-label">Avg Latency</div>
+        <div class="pa-metric-value" data-count="{{ stats.avg_latency_ms }}" data-suffix="ms">0</div>
+    </div>
+    <div class="glass-card pa-metric">
+        <div class="pa-metric-label">AI Cost Today</div>
+        <div class="pa-metric-value" data-count="{{ '%.4f'|format(stats.cost_today) }}" data-prefix="$" data-decimals="4">$0</div>
+    </div>
+    <div class="glass-card pa-metric">
+        <div class="pa-metric-label">Storage</div>
+        <div class="pa-metric-value" style="font-size:1.1rem;">{{ stats.storage_human }}</div>
+    </div>
+    <div class="glass-card pa-metric">
+        <div class="pa-metric-label">Background Jobs</div>
+        <div class="pa-metric-value" data-count="{{ stats.jobs_queued + stats.jobs_running }}">0</div>
+        <div class="pa-metric-sub">{{ stats.queue_label }} · {{ stats.jobs_failed }} failed</div>
+    </div>
+    <div class="glass-card pa-metric">
+        <div class="pa-metric-label">Queue</div>
+        <div class="pa-metric-value" style="font-size:1.1rem;">{{ stats.jobs_queued }}/{{ stats.jobs_running }}</div>
+        <div class="pa-metric-sub">queued / running</div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-4">
+        <div class="glass-card pa-panel">
+            <div class="pa-panel-head">
+                <h3>System status</h3>
+                <a class="pa-panel-link" href="{{ url_for('platform_admin.monitoring') }}">Open</a>
+            </div>
+            <ul class="pa-list">
+                {% for name, check in stats.health.checks.items() %}
+                <li>
+                    <span>{{ name|replace('_', ' ')|title }}</span>
+                    <strong class="{% if check.ok %}text-success{% else %}text-danger{% endif %}">{{ check.detail }}</strong>
+                </li>
+                {% else %}
+                <li><span class="text-secondary">No probes yet</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="glass-card pa-panel">
+            <div class="pa-panel-head">
+                <h3>Product volume</h3>
+            </div>
+            <ul class="pa-list">
+                <li><span>Organizations</span><strong>{{ stats.total_orgs }}</strong></li>
+                <li><span>Clients</span><strong>{{ stats.clients }}</strong></li>
+                <li><span>Campaigns</span><strong>{{ stats.campaigns }}</strong></li>
+                <li><span>Content pieces</span><strong>{{ stats.contents }}</strong></li>
+                <li><span>Agent runs (7d)</span><strong>{{ stats.agent_runs_7d }}</strong></li>
+                <li><span>Knowledge docs</span><strong>{{ stats.knowledge_docs }}</strong></li>
+                <li><span>Tools</span><strong>{{ stats.tools_count }}</strong></li>
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="glass-card pa-panel">
+            <div class="pa-panel-head">
+                <h3>Subscriptions</h3>
+                <a class="pa-panel-link" href="{{ url_for('platform_admin.billing') }}">Billing</a>
+            </div>
+            <ul class="pa-list">
+                <li><span>Paid</span><strong>{{ stats.paid_subs }}</strong></li>
+                <li><span>Trial</span><strong>{{ stats.trial_subs }}</strong></li>
+                <li><span>Cancelled</span><strong>{{ stats.cancelled_subs }}</strong></li>
+                <li><span>Suspended users</span><strong>{{ stats.suspended_users }}</strong></li>
+                <li><span>Signups (30d)</span><strong>{{ stats.signups_30d }}</strong></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="glass-card pa-panel">
+            <div class="pa-panel-head">
+                <h3>Quick actions</h3>
+            </div>
+            <div class="pa-quick-actions">
+                <a class="pa-quick-action" href="{{ url_for('platform_admin.users') }}"><i class="bi bi-people"></i>Manage users</a>
+                <a class="pa-quick-action" href="{{ url_for('platform_admin.ai_analytics') }}"><i class="bi bi-graph-up"></i>AI analytics</a>
+                <a class="pa-quick-action" href="{{ url_for('platform_admin.feature_flags') }}"><i class="bi bi-toggle-on"></i>Feature flags</a>
+                <a class="pa-quick-action" href="{{ url_for('platform_admin.audit') }}"><i class="bi bi-shield-check"></i>Audit trail</a>
+                <a class="pa-quick-action" href="{{ url_for('platform_admin.infrastructure') }}"><i class="bi bi-server"></i>Infrastructure</a>
+                <a class="pa-quick-action" href="{{ url_for('platform_admin.settings') }}"><i class="bi bi-sliders"></i>Settings</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="glass-card pa-panel">
+            <div class="pa-panel-head">
+                <h3>Recent activity signals</h3>
+                <a class="pa-panel-link" href="{{ url_for('platform_admin.audit') }}">Audit</a>
+            </div>
+            <ul class="pa-timeline">
+                <li>
+                    <div>{{ stats.new_signups }} new signups in the last 7 days</div>
+                    <div class="pa-timeline-meta">Growth · signups_7d</div>
+                </li>
+                <li>
+                    <div>{{ stats.ai_requests_today }} AI requests processed today · ${{ '%.4f'|format(stats.cost_today) }}</div>
+                    <div class="pa-timeline-meta">AI platform · cost &amp; volume</div>
+                </li>
+                <li>
+                    <div>Jobs queue {{ stats.jobs_queued }} queued / {{ stats.jobs_running }} running · {{ stats.jobs_failed }} failed</div>
+                    <div class="pa-timeline-meta">Operations · {{ stats.queue_label }}</div>
+                </li>
+                <li>
+                    <div>Platform health {{ stats.health.status }} · {{ stats.signups_30d }} signups (30d)</div>
+                    <div class="pa-timeline-meta">Status · monitoring</div>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

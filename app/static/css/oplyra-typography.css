@@ -1,0 +1,208 @@
+/**
+ * Oplyra Typography System
+ * Premium SaaS scale inspired by Amazon Bedrock Console, Linear, Vercel, Stripe.
+ * Single source of truth — Inter only. Do not declare font-family elsewhere.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* ── Font families ─────────────────────────────────────────── */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+
+  /* ── Type scale (px) ───────────────────────────────────────── */
+  --text-display: 48px;       /* Display */
+  --text-display-sm: 40px;    /* Display small */
+  --text-h1: 32px;            /* H1 */
+  --text-h2: 28px;            /* H2 */
+  --text-h3: 24px;            /* H3 */
+  --text-h4: 20px;            /* H4 */
+  --text-body-lg: 16px;       /* Body Large */
+  --text-body: 15px;          /* Body (default UI) */
+  --text-small: 14px;         /* Small */
+  --text-caption: 13px;       /* Caption */
+  --text-button: 14px;        /* Buttons */
+
+  /* ── Font weights (allowed set) ────────────────────────────── */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Aliases used by components */
+  --font-weight-normal: var(--font-weight-regular);
+  --font-weight-strong: var(--font-weight-semibold);
+
+  /* ── Line height & tracking ────────────────────────────────── */
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+
+  --tracking-display: -0.03em;
+  --tracking-heading: -0.02em;
+  --tracking-body: -0.011em;
+  --tracking-label: 0.02em;
+}
+
+/* ── Global application ──────────────────────────────────────── */
+html {
+  font-family: var(--font-sans);
+  font-size: 16px; /* rem root; UI scale uses px tokens below */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-body);
+}
+
+button,
+input,
+select,
+textarea,
+.btn,
+.form-control,
+.dropdown-menu,
+.modal,
+.nav,
+.navbar {
+  font-family: var(--font-sans);
+}
+
+code,
+kbd,
+pre,
+samp,
+.font-mono,
+.fw-mono {
+  font-family: var(--font-mono);
+}
+
+/* ── Semantic heading scale ──────────────────────────────────── */
+h1, .text-h1, .type-h1 {
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-heading);
+}
+
+h2, .text-h2, .type-h2 {
+  font-size: var(--text-h2);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-heading);
+}
+
+h3, .text-h3, .type-h3 {
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-heading);
+}
+
+h4, .text-h4, .type-h4 {
+  font-size: var(--text-h4);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-heading);
+}
+
+h5, .text-h5, .type-h5 {
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-body);
+}
+
+h6, .text-h6, .type-h6 {
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-label);
+  text-transform: none;
+}
+
+/* ── Utility scale ───────────────────────────────────────────── */
+.text-display, .type-display {
+  font-size: var(--text-display);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-display);
+}
+
+.text-display-sm, .type-display-sm {
+  font-size: var(--text-display-sm);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-display);
+}
+
+.text-body-lg, .type-body-lg {
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-body);
+}
+
+.text-body, .type-body {
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-body);
+}
+
+.text-small, .type-small {
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-body);
+}
+
+.text-caption, .type-caption {
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-body);
+}
+
+.text-button, .type-button {
+  font-size: var(--text-button);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.25;
+  letter-spacing: var(--tracking-body);
+}
+
+.font-regular { font-weight: var(--font-weight-regular) !important; }
+.font-medium { font-weight: var(--font-weight-medium) !important; }
+.font-semibold { font-weight: var(--font-weight-semibold) !important; }
+.font-bold { font-weight: var(--font-weight-bold) !important; }
+
+/* Bootstrap weight aliases → allowed set */
+.fw-light,
+.fw-lighter { font-weight: var(--font-weight-regular) !important; }
+.fw-normal { font-weight: var(--font-weight-regular) !important; }
+.fw-medium { font-weight: var(--font-weight-medium) !important; }
+.fw-semibold { font-weight: var(--font-weight-semibold) !important; }
+.fw-bold,
+.fw-bolder { font-weight: var(--font-weight-bold) !important; }
+
+@media (max-width: 768px) {
+  :root {
+    --text-display: 40px;
+    --text-display-sm: 32px;
+    --text-h1: 28px;
+    --text-h2: 24px;
+    --text-h3: 20px;
+    --text-h4: 18px;
+  }
+}

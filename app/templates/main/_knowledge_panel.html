@@ -1,0 +1,112 @@
+{# Enterprise Knowledge Center #}
+<div id="panel-knowledge" class="tab-panel tab-hidden">
+    <div class="knowledge-hub">
+        <div class="knowledge-hub-header mb-4">
+            <div>
+                <h2 class="text-white mb-1"><i class="bi bi-journal-richtext text-indigo me-2"></i>Knowledge Center</h2>
+                <p class="text-secondary mb-0" style="font-size: 0.8rem;">
+                    Company brain for every AI Agent — ingest documents, search semantically, power RAG.
+                </p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="btn btn-secondary-custom btn-sm" id="knowledge-reindex-btn">
+                    <i class="bi bi-arrow-repeat me-1"></i>Reindex
+                </button>
+                <button type="button" class="btn btn-primary-custom btn-sm" id="knowledge-upload-toggle">
+                    <i class="bi bi-cloud-upload me-1"></i>Upload
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="row g-3 mb-4" id="knowledge-stats-row">
+            <div class="col-6 col-md-3"><div class="knowledge-stat-card"><div class="knowledge-stat-value" id="ks-docs">0</div><div class="knowledge-stat-label">Documents</div></div></div>
+            <div class="col-6 col-md-3"><div class="knowledge-stat-card"><div class="knowledge-stat-value" id="ks-chunks">0</div><div class="knowledge-stat-label">Chunks</div></div></div>
+            <div class="col-6 col-md-3"><div class="knowledge-stat-card"><div class="knowledge-stat-value" id="ks-embeds">0</div><div class="knowledge-stat-label">Embeddings</div></div></div>
+            <div class="col-6 col-md-3"><div class="knowledge-stat-card"><div class="knowledge-stat-value" id="ks-searches">0</div><div class="knowledge-stat-label">Searches</div></div></div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-5">
+                <!-- Upload -->
+                <div class="glass-card p-3 mb-3" id="knowledge-upload-card">
+                    <h6 class="text-white mb-3">Upload / Ingest</h6>
+                    <div id="knowledge-dropzone" class="knowledge-dropzone mb-3">
+                        <i class="bi bi-cloud-arrow-up"></i>
+                        <div>Drag & drop files here</div>
+                        <div class="text-secondary small">PDF, DOCX, TXT, CSV, XLSX, MD, HTML, JSON</div>
+                        <input type="file" id="knowledge-file-input" class="d-none" multiple>
+                    </div>
+                    <div class="mb-2">
+                        <input type="text" id="knowledge-note-title" class="form-control form-control-custom mb-2" placeholder="Note title">
+                        <textarea id="knowledge-note-text" class="form-control form-control-custom" rows="3" placeholder="Or paste brand guidelines / playbook notes…"></textarea>
+                    </div>
+                    <div class="mb-2">
+                        <input type="url" id="knowledge-url" class="form-control form-control-custom" placeholder="https://… website or sitemap URL">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-1">Collection</label>
+                        <select id="knowledge-collection-select" class="form-select form-control-custom"></select>
+                    </div>
+                    <div class="progress knowledge-progress d-none mb-2" id="knowledge-progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width:40%"></div>
+                    </div>
+                    <button type="button" class="btn btn-primary-custom w-100" id="knowledge-ingest-btn">
+                        <i class="bi bi-plus-lg me-1"></i>Add to Knowledge
+                    </button>
+                    <div id="knowledge-upload-error" class="text-danger small mt-2 d-none"></div>
+                </div>
+
+                <!-- Collections -->
+                <div class="glass-card p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="text-white mb-0">Collections</h6>
+                        <button type="button" class="btn btn-secondary-custom btn-sm" id="knowledge-new-collection-btn">New</button>
+                    </div>
+                    <div id="knowledge-collections" class="knowledge-collections"></div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <!-- Search -->
+                <div class="glass-card p-3 mb-3">
+                    <h6 class="text-white mb-3">Semantic Search</h6>
+                    <div class="input-group mb-2">
+                        <input type="text" id="knowledge-search-input" class="form-control form-control-custom" placeholder="Search knowledge…">
+                        <button class="btn btn-primary-custom" type="button" id="knowledge-search-btn">Search</button>
+                    </div>
+                    <div class="d-flex gap-2 mb-3 flex-wrap">
+                        <select id="knowledge-search-type" class="form-select form-control-custom" style="max-width:140px;">
+                            <option value="hybrid">Hybrid</option>
+                            <option value="semantic">Semantic</option>
+                            <option value="keyword">Keyword</option>
+                        </select>
+                    </div>
+                    <div id="knowledge-search-results" class="knowledge-search-results"></div>
+                </div>
+
+                <!-- Documents -->
+                <div class="glass-card p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="text-white mb-0">Documents</h6>
+                        <span class="text-secondary small" id="knowledge-storage-label"></span>
+                    </div>
+                    <div id="knowledge-documents" class="knowledge-documents"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Document detail -->
+        <div class="glass-card p-3 mt-3 d-none" id="knowledge-detail-card">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <h6 class="text-white mb-1" id="knowledge-detail-title">Document</h6>
+                    <div class="text-secondary small" id="knowledge-detail-meta"></div>
+                </div>
+                <button type="button" class="btn btn-secondary-custom btn-sm" id="knowledge-detail-close">Close</button>
+            </div>
+            <pre id="knowledge-detail-content" class="knowledge-detail-content mb-3"></pre>
+            <div id="knowledge-detail-versions"></div>
+        </div>
+    </div>
+</div>

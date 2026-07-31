@@ -1,0 +1,792 @@
+{% extends "base.html" %}
+
+{% block title %}{{ content.title }} - Oplyra{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Tab transition utilities */
+    .tab-panel-view {
+        opacity: 1;
+        transition: opacity 0.2s ease-in-out;
+    }
+    .tab-panel-view.tab-hidden {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Fullscreen Glassmorphism Loading Spinner overlay -->
+<div id="loading-overlay" class="d-none">
+    <div class="text-center text-white">
+        {% from 'partials/_logo.html' import oplyra_logo %}
+        {{ oplyra_logo('loading', href=none) }}
+        <div class="spinner-border text-indigo mb-3" role="status" style="width: 3rem; height: 3rem; color: #6366f1;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h4 class="fw-bold">Regenerating copy with AI Engine</h4>
+        <p class="text-secondary small mb-0">Re-analyzing parameters and rewriting marketing copy...</p>
+    </div>
+</div>
+
+<!-- Split AI Workspace Layout -->
+<div class="split-workspace glass-card">
+    
+    <!-- LEFT PANEL: Parameters & Controls -->
+    <div class="prompt-pane">
+        
+        <!-- Header -->
+        <div class="p-3 border-bottom d-flex align-items-center justify-content-between" style="border-color: rgba(255, 255, 255, 0.05) !important;">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-indigo"><i class="bi bi-sliders" style="font-size: 1.1rem;"></i></span>
+                <h6 class="mb-0 text-white font-weight-bold">Copy Parameters</h6>
+            </div>
+            <a href="{{ url_for('projects.view_project', project_id=content.project_id) }}" class="small text-muted" title="Back to Project"><i class="bi-chevron-left"></i> Campaign</a>
+        </div>
+        
+        <!-- Parameter list body -->
+        <div class="prompt-pane-body">
+            
+            <!-- Metadata table card -->
+            <div class="glass-card p-3 mb-3" style="background: rgba(255,255,255,0.01);">
+                <h6 class="text-white mb-2" style="font-size: 0.8rem;"><i class="bi-folder2 text-indigo me-1.5"></i>Workspace Details</h6>
+                <table class="table table-sm table-borderless text-secondary mb-0" style="font-size: 0.775rem;">
+                    <tbody>
+                        <tr>
+                            <td class="ps-0 py-1 font-weight-bold" style="width: 40%;">Project:</td>
+                            <td class="pe-0 py-1 text-white text-truncate" style="max-width: 130px;">{{ content.project.name }}</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-0 py-1 font-weight-bold">Format:</td>
+                            <td class="pe-0 py-1 text-capitalize text-white">
+                                {% if content.type == 'blog' %}Blog
+                                {% elif content.type == 'email' %}Email
+                                {% elif content.type == 'facebook_post' %}FB Post
+                                {% elif content.type == 'product_review' %}Review
+                                {% else %}{{ content.type }}{% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="ps-0 py-1 font-weight-bold">Generated:</td>
+                            <td class="pe-0 py-1 text-white small">{{ content.generated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Parameters checklist -->
+            <div class="glass-card p-3 mb-3" style="background: rgba(255,255,255,0.01);">
+                <h6 class="text-white mb-2" style="font-size: 0.8rem;"><i class="bi-cpu-fill text-teal me-1.5"></i>AI Prompts Settings</h6>
+                <table class="table table-sm table-borderless text-secondary mb-0" style="font-size: 0.775rem;">
+                    <tbody>
+                        <tr>
+                            <td class="ps-0 py-1 font-weight-bold" style="width: 40%;">Audience:</td>
+                            <td class="pe-0 py-1 text-white text-truncate" style="max-width: 130px;">{{ prompt_settings.get('audience', 'default') }}</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-0 py-1 font-weight-bold">Tone:</td>
+                            <td class="pe-0 py-1 text-white text-capitalize text-truncate" style="max-width: 130px;">{{ prompt_settings.get('tone', 'default') }}</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-0 py-1 font-weight-bold">Product:</td>
+                            <td class="pe-0 py-1 text-white text-truncate" style="max-width: 130px;">{{ prompt_settings.get('product_name', 'None') or 'None' }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                {% if prompt_settings.get('keywords') %}
+                    <div class="mt-2.5">
+                        <span class="d-block text-secondary mb-1.5 font-weight-bold" style="font-size: 0.7rem;">KEYWORDS:</span>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for keyword in prompt_settings.get('keywords') %}
+                                <span class="badge bg-secondary-subtle text-secondary small border border-secondary border-opacity-25 px-2 py-0.5" style="font-size: 0.65rem;">
+                                    {{ keyword }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            
+            {% if prompt_settings.get('full_prompt') %}
+            <!-- Gemini Prompts Accordion -->
+            <div class="glass-card p-3 mb-3" style="background: rgba(255,255,255,0.015);">
+                <h6 class="text-white mb-2" style="font-size: 0.8rem;"><i class="bi-terminal text-warning me-1.5"></i>AI Prompts</h6>
+                <div class="accordion accordion-flush" id="promptAccordion" style="--bs-accordion-bg: transparent; --bs-accordion-color: #cbd5e1;">
+                    <div class="accordion-item" style="border-color: rgba(255, 255, 255, 0.05); background: transparent;">
+                        <h2 class="accordion-header" id="headingSystem">
+                            <button class="accordion-button collapsed py-2 px-0" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSystem" aria-expanded="false" aria-controls="collapseSystem" style="background: transparent; box-shadow: none; font-size: 0.725rem; color: #a5b4fc !important; border: none;">
+                                <i class="bi-cpu me-1"></i>System Instruction
+                            </button>
+                        </h2>
+                        <div id="collapseSystem" class="accordion-collapse collapse" aria-labelledby="headingSystem" data-bs-parent="#promptAccordion">
+                            <div class="accordion-body text-secondary p-2 font-monospace" style="font-size: 0.675rem; white-space: pre-wrap; background: rgba(0,0,0,0.25); border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); max-height: 120px; overflow-y: auto; line-height: 1.4;">{{ prompt_settings.get('system_instruction', 'No system instruction.') }}</div>
+                        </div>
+                    </div>
+                    <div class="accordion-item" style="border-color: rgba(255, 255, 255, 0.05); background: transparent;">
+                        <h2 class="accordion-header" id="headingUser">
+                            <button class="accordion-button collapsed py-2 px-0" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUser" aria-expanded="false" aria-controls="collapseUser" style="background: transparent; box-shadow: none; font-size: 0.725rem; color: #34d399 !important; border: none;">
+                                <i class="bi-chat-left-quote me-1"></i>Exact User Prompt
+                            </button>
+                        </h2>
+                        <div id="collapseUser" class="accordion-collapse collapse" aria-labelledby="headingUser" data-bs-parent="#promptAccordion">
+                            <div class="accordion-body text-secondary p-2 font-monospace" style="font-size: 0.675rem; white-space: pre-wrap; background: rgba(0,0,0,0.25); border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); max-height: 200px; overflow-y: auto; line-height: 1.4;">{{ prompt_settings.get('full_prompt', 'No user prompt.') }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Action buttons -->
+            <button type="button" id="regenerate-btn" class="btn btn-secondary-custom btn-sm w-100 py-2 mb-3 text-warning" data-content-id="{{ content.id }}">
+                <i class="bi bi-arrow-clockwise me-1.5"></i>Regenerate Copy
+            </button>
+
+            <!-- AI Content Improver -->
+            <div class="glass-card p-3 mb-3">
+                <h6 class="text-white mb-2" style="font-size: 0.8rem;"><i class="bi bi-magic text-indigo me-1.5"></i>AI Assistant</h6>
+                <div class="mb-2">
+                    <select id="ai-improve-action" class="form-select form-control-custom form-select-sm text-xs" style="font-size: 0.725rem;">
+                        <option value="improve">🚀 General Improvement</option>
+                        <option value="rewrite">🔄 Rewrite Copy</option>
+                        <option value="expand">📈 Expand & Detail</option>
+                        <option value="shorten">📉 Shorten & Condense</option>
+                        <option value="humanize">🧠 Humanize Text</option>
+                        <option value="seo_optimize">🔍 SEO Optimization</option>
+                        <option value="tone_professional">👔 Tone: Professional</option>
+                        <option value="tone_friendly">🤝 Tone: Friendly</option>
+                        <option value="tone_persuasive">🎯 Tone: Persuasive</option>
+                        <option value="tone_formal">🎩 Tone: Formal</option>
+                        <option value="tone_casual">💬 Tone: Casual</option>
+                    </select>
+                </div>
+                <button type="button" id="apply-improve-btn" class="btn btn-primary-custom btn-sm w-100 py-1.5 text-xs font-semibold" onclick="applyAIImprovement()">
+                    <i class="bi bi-sparkles me-1.5"></i>Apply AI Assist
+                </button>
+            </div>
+
+            <!-- Danger Zone details -->
+            <div class="glass-card p-3 border border-danger border-opacity-20" style="background: rgba(239, 68, 68, 0.02);">
+                <h6 class="text-danger mb-1.5" style="font-size: 0.8rem;"><i class="bi-exclamation-triangle me-1.5"></i>Danger Zone</h6>
+                <p class="text-muted small mb-2.5" style="font-size: 0.7rem;">Delete this generated text from the workspace database permanently.</p>
+                <form action="{{ url_for('content.delete_content', content_id=content.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently delete this content asset?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-danger btn-sm w-100 py-1.5" style="font-size: 0.725rem;">
+                        <i class="bi bi-trash me-1.5"></i>Delete Asset
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL: Editor & Previews tabs -->
+    <div class="output-pane">
+        
+        <!-- Header with tabs navigation pills -->
+        <div class="p-2 border-bottom d-flex align-items-center justify-content-between" style="border-color: rgba(255, 255, 255, 0.05) !important; height: var(--header-height);">
+            <div class="d-flex border-0 gap-1.5">
+                <button type="button" class="btn btn-outline-secondary-custom active py-1 px-3" id="tab-content" onclick="switchTab('content')">
+                    <i class="bi bi-file-earmark-text me-1.5"></i>Draft Preview
+                </button>
+                <button type="button" class="btn btn-outline-secondary-custom py-1 px-3" id="tab-editor" onclick="switchTab('editor')">
+                    <i class="bi bi-pencil-square me-1.5"></i>Write / Edit
+                </button>
+                <button type="button" class="btn btn-outline-secondary-custom py-1 px-3" id="tab-seo" onclick="switchTab('seo')">
+                    <i class="bi bi-graph-up-arrow me-1.5"></i>SEO Checklist
+                    {% if content.seo_analysis %}
+                        <span class="badge rounded-pill ms-1 {% if content.seo_analysis.seo_score >= 80 %}bg-success{% elif content.seo_analysis.seo_score >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="font-size: 0.6rem;">
+                            {{ content.seo_analysis.seo_score }}
+                        </span>
+                    {% endif %}
+                </button>
+            </div>
+            <span class="badge bg-opacity-10 text-white" style="background-color: rgba(255,255,255,0.06); font-size: 0.7rem;" id="workspace-status-label">{{ content.status|capitalize }}</span>
+        </div>
+
+        <!-- Scrollable tab body pane -->
+        <div class="output-pane-body">
+            
+            <!-- PANEL 1: Markdown Preview -->
+            <div id="panel-content" class="tab-panel-view">
+                <h3 class="text-white mb-3" id="preview-title">{{ content.title }}</h3>
+                <pre id="markdown-raw" class="d-none">{{ content.body }}</pre>
+                <div id="copy-target" class="d-none">{{ content.body }}</div>
+                <div id="rendered-content" class="markdown-body text-light"></div>
+            </div>
+
+            <!-- PANEL 2: Edit Form Pane -->
+            <div id="panel-editor" class="tab-panel-view tab-hidden">
+                <form id="edit-content-form" action="{{ url_for('content.edit_content', content_id=content.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="edit-title" class="form-label-custom">Asset Title *</label>
+                        <input type="text" name="title" id="edit-title" class="form-control form-control-custom" value="{{ content.title }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-status" class="form-label-custom">Draft Status *</label>
+                        <select name="status" id="edit-status" class="form-select form-control-custom" required>
+                            <option value="draft" {% if content.status == 'draft' %}selected{% endif %}>Draft</option>
+                            <option value="finalized" {% if content.status == 'finalized' %}selected{% endif %}>Finalized</option>
+                            <option value="archived" {% if content.status == 'archived' %}selected{% endif %}>Archived</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-body" class="form-label-custom">Content Body (Markdown Supported) *</label>
+                        <!-- Editable textarea that occupies the majority of the editor screen height -->
+                        <textarea name="body" id="edit-body" rows="12" class="form-control form-control-custom font-monospace" style="font-size: 0.85rem; line-height: 1.5; resize: vertical;" required>{{ content.body }}</textarea>
+                    </div>
+                </form>
+            </div>
+
+            <!-- PANEL 3: SEO Analysis Scorecard -->
+            <div id="panel-seo" class="tab-panel-view tab-hidden">
+                <div class="row g-3 mb-4">
+                    <div class="col-sm-6">
+                        <div class="glass-card p-3 text-center" style="background: rgba(255,255,255,0.015);">
+                            <div class="small text-muted mb-1.5 font-weight-bold" style="font-size: 0.65rem; letter-spacing: 0.05em;">SEO SCORE</div>
+                            {% if content.seo_analysis %}
+                                <div class="display-6 fw-bold {% if content.seo_analysis.seo_score >= 80 %}text-success{% elif content.seo_analysis.seo_score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ content.seo_analysis.seo_score }}<span class="fs-6 text-muted">/100</span>
+                                </div>
+                                <div class="small mt-1.5" style="font-size: 0.75rem;">
+                                    {% if content.seo_analysis.seo_score >= 80 %}
+                                        <span class="text-success"><i class="bi bi-shield-check me-1"></i>Optimized copy</span>
+                                    {% elif content.seo_analysis.seo_score >= 50 %}
+                                        <span class="text-warning"><i class="bi bi-shield-exclamation me-1"></i>Needs improvement</span>
+                                    {% else %}
+                                        <span class="text-danger"><i class="bi bi-shield-x me-1"></i>Critical SEO issues</span>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <div class="display-6 fw-bold text-muted">- -</div>
+                                <div class="small mt-1.5 text-muted" style="font-size: 0.7rem;">Run analysis to calculate</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-sm-6">
+                        <div class="glass-card p-3 text-center" style="background: rgba(255,255,255,0.015);">
+                            <div class="small text-muted mb-1.5 font-weight-bold" style="font-size: 0.65rem; letter-spacing: 0.05em;">READABILITY INDEX</div>
+                            {% if content.seo_analysis %}
+                                <div class="display-6 fw-bold text-teal">
+                                    {{ content.seo_analysis.readability_score }}<span class="fs-6 text-muted">/100</span>
+                                </div>
+                                <div class="small mt-1.5 text-muted" style="font-size: 0.7rem;">
+                                    {% if content.seo_analysis.details and content.seo_analysis.details.readability %}
+                                        Rating: {{ content.seo_analysis.details.readability.rating }}
+                                    {% else %}
+                                        Flesch Reading Ease level
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <div class="display-6 fw-bold text-muted">- -</div>
+                                <div class="small mt-1.5 text-muted" style="font-size: 0.7rem;">Run analysis to score</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if content.seo_analysis and content.seo_analysis.details %}
+                    {% set details = content.seo_analysis.details %}
+                    
+                    <!-- Advanced SEO Accordion Section -->
+                    <div class="accordion accordion-custom mb-4" id="seoAdvancedAccordion">
+                        
+                        <!-- 1. Keywords Density & Distribution -->
+                        <div class="accordion-item bg-transparent border-0 mb-2">
+                            <h2 class="accordion-header" id="headingKeywords">
+                                <button class="accordion-button collapsed glass-card py-2 px-3 text-xs text-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapseKeywords" aria-expanded="false" aria-controls="collapseKeywords">
+                                    <i class="bi bi-key text-teal me-2"></i>Keywords Density & Placement
+                                </button>
+                            </h2>
+                            <div id="collapseKeywords" class="accordion-collapse collapse" aria-labelledby="headingKeywords" data-bs-parent="#seoAdvancedAccordion">
+                                <div class="accordion-body glass-card mt-1 p-3 bg-black bg-opacity-40">
+                                    <div class="table-responsive mb-3">
+                                        <table class="table table-custom table-sm mb-0" style="font-size: 0.725rem;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Target Keyword</th>
+                                                    <th>Occurrences</th>
+                                                    <th>Density %</th>
+                                                    <th class="text-end">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for kw, report in content.seo_analysis.keywords_found.items() %}
+                                                    <tr>
+                                                        <td class="text-white fw-semibold">{{ kw }}</td>
+                                                        <td>{{ report.count }} times</td>
+                                                        <td>{{ report.density }}%</td>
+                                                        <td class="text-end">
+                                                            {% if report.status == 'optimal' %}
+                                                                <span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-30 px-2 py-0.5 rounded font-bold" style="font-size: 0.6rem;">Optimal</span>
+                                                            {% elif report.status == 'low' %}
+                                                                <span class="badge bg-warning bg-opacity-15 text-warning border border-warning border-opacity-30 px-2 py-0.5 rounded font-bold" style="font-size: 0.6rem;">Low</span>
+                                                            {% elif report.status == 'stuffing' %}
+                                                                <span class="badge bg-danger bg-opacity-15 text-danger border border-danger border-opacity-30 px-2 py-0.5 rounded font-bold" style="font-size: 0.6rem;">Stuffing</span>
+                                                            {% else %}
+                                                                <span class="badge bg-secondary bg-opacity-15 text-slate-400 border border-secondary border-opacity-30 px-2 py-0.5 rounded font-bold" style="font-size: 0.6rem;">Missing</span>
+                                                            {% endif %}
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {% if details.distribution %}
+                                        <div class="small text-muted" style="font-size: 0.725rem;">
+                                            <div class="text-white fw-bold mb-1.5"><i class="bi bi-pie-chart me-1 text-teal"></i>Keyword Placement Check:</div>
+                                            <ul class="list-unstyled mb-0 d-flex flex-column gap-1">
+                                                <li>• Introduction Density: <span class="text-white fw-mono">{{ details.distribution.intro_density }}%</span> (Target: >10% of total keywords)</li>
+                                                <li>• Body Density: <span class="text-white fw-mono">{{ details.distribution.body_density }}%</span> (Target: ~80% of total keywords)</li>
+                                                <li>• Conclusion Density: <span class="text-white fw-mono">{{ details.distribution.conclusion_density }}%</span> (Target: >10% of total keywords)</li>
+                                            </ul>
+                                            {% if details.distribution.issues %}
+                                                <div class="mt-2 text-warning"><i class="bi bi-exclamation-triangle-fill me-1.5"></i>Distribution Alert: {{ details.distribution.issues|join(', ') }}</div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Document Structural Quality -->
+                        <div class="accordion-item bg-transparent border-0 mb-2">
+                            <h2 class="accordion-header" id="headingStructure">
+                                <button class="accordion-button collapsed glass-card py-2 px-3 text-xs text-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapseStructure" aria-expanded="false" aria-controls="collapseStructure">
+                                    <i class="bi bi-layout-text-window-reverse text-indigo me-2"></i>Header Structure Hierarchy
+                                </button>
+                            </h2>
+                            <div id="collapseStructure" class="accordion-collapse collapse" aria-labelledby="headingStructure" data-bs-parent="#seoAdvancedAccordion">
+                                <div class="accordion-body glass-card mt-1 p-3 bg-black bg-opacity-40 text-xs">
+                                    {% if details.structure %}
+                                        <div class="row g-2 mb-3 text-center">
+                                            <div class="col-3">
+                                                <div class="bg-black bg-opacity-25 rounded p-2 border border-secondary border-opacity-10">
+                                                    <div class="text-slate-400 font-bold" style="font-size: 0.6rem;">H1 TAGS</div>
+                                                    <div class="text-white font-mono fw-bold">{{ details.structure.h1_count }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-3">
+                                                <div class="bg-black bg-opacity-25 rounded p-2 border border-secondary border-opacity-10">
+                                                    <div class="text-slate-400 font-bold" style="font-size: 0.6rem;">H2 TAGS</div>
+                                                    <div class="text-white font-mono fw-bold">{{ details.structure.h2_count }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-3">
+                                                <div class="bg-black bg-opacity-25 rounded p-2 border border-secondary border-opacity-10">
+                                                    <div class="text-slate-400 font-bold" style="font-size: 0.6rem;">H3 TAGS</div>
+                                                    <div class="text-white font-mono fw-bold">{{ details.structure.h3_count }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-3">
+                                                <div class="bg-black bg-opacity-25 rounded p-2 border border-secondary border-opacity-10">
+                                                    <div class="text-slate-400 font-bold" style="font-size: 0.6rem;">H4 TAGS</div>
+                                                    <div class="text-white font-mono fw-bold">{{ details.structure.h4_count }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% if details.structure.nested_header_issues %}
+                                            <div class="alert alert-warning py-1.5 px-3 text-[11px] mb-0" style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.15);">
+                                                <i class="bi bi-exclamation-triangle-fill me-1.5"></i><strong>Hierarchy Warning:</strong>
+                                                <ul class="mb-0 mt-1 ps-3">
+                                                    {% for issue in details.structure.nested_header_issues %}
+                                                        <li>{{ issue }}</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                        {% else %}
+                                            <div class="text-success"><i class="bi bi-check-circle-fill me-1.5"></i>Header hierarchy is correctly structured (nesting order matches SEO guidelines).</div>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Links & Images Audit -->
+                        <div class="accordion-item bg-transparent border-0 mb-2">
+                            <h2 class="accordion-header" id="headingMedia">
+                                <button class="accordion-button collapsed glass-card py-2 px-3 text-xs text-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMedia" aria-expanded="false" aria-controls="collapseMedia">
+                                    <i class="bi bi-link-45deg text-pink me-2"></i>Links & Media Audit
+                                </button>
+                            </h2>
+                            <div id="collapseMedia" class="accordion-collapse collapse" aria-labelledby="headingMedia" data-bs-parent="#seoAdvancedAccordion">
+                                <div class="accordion-body glass-card mt-1 p-3 bg-black bg-opacity-40 text-xs">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <div class="fw-bold text-white mb-1.5"><i class="bi bi-link me-1 text-pink"></i>Hyperlink Counter:</div>
+                                            <ul class="list-unstyled mb-0 d-flex flex-column gap-1">
+                                                <li>• Internal Links: <span class="text-white fw-mono font-bold">{{ details.links.internal_link_count }}</span></li>
+                                                <li>• External Links: <span class="text-white fw-mono font-bold">{{ details.links.external_link_count }}</span></li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="fw-bold text-white mb-1.5"><i class="bi bi-image me-1 text-pink"></i>Image Alt Auditor:</div>
+                                            <ul class="list-unstyled mb-0 d-flex flex-column gap-1">
+                                                <li>• Total Images: <span class="text-white fw-mono font-bold">{{ details.images.image_count }}</span></li>
+                                                <li>• Missing Alt Tags: <span class="text-white fw-mono font-bold {% if details.images.images_missing_alt_count > 0 %}text-danger{% endif %}">{{ details.images.images_missing_alt_count }}</span></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    {% if details.images.images_missing_alt_count > 0 %}
+                                        <div class="alert alert-danger py-1.5 px-3 text-[11px] mb-0 mt-3" style="background: rgba(239, 68, 68, 0.03); border: 1px solid rgba(239, 68, 68, 0.12);">
+                                            <i class="bi bi-x-circle-fill me-1.5"></i>Some images are missing ALT tags. Add ALT values to boost search indexing.
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4. Style, Sentence & Paragraph Lengths -->
+                        <div class="accordion-item bg-transparent border-0 mb-2">
+                            <h2 class="accordion-header" id="headingStyle">
+                                <button class="accordion-button collapsed glass-card py-2 px-3 text-xs text-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapseStyle" aria-expanded="false" aria-controls="collapseStyle">
+                                    <i class="bi bi-bookmark-star text-warning me-2"></i>Copywriting Style & Readability
+                                </button>
+                            </h2>
+                            <div id="collapseStyle" class="accordion-collapse collapse" aria-labelledby="headingStyle" data-bs-parent="#seoAdvancedAccordion">
+                                <div class="accordion-body glass-card mt-1 p-3 bg-black bg-opacity-40 text-xs">
+                                    <ul class="list-unstyled mb-0 d-flex flex-column gap-2 text-slate-400">
+                                        <li class="d-flex justify-content-between">
+                                            <span>Passive Voice Percentage:</span>
+                                            <span class="text-white font-mono {% if details.voice.passive_voice_percentage > 20 %}text-warning{% endif %}">{{ details.voice.passive_voice_percentage }}%</span>
+                                        </li>
+                                        <li class="d-flex justify-content-between">
+                                            <span>Long Paragraphs (>150 words):</span>
+                                            <span class="text-white font-mono {% if details.paragraphs.long_paragraphs_count > 0 %}text-warning{% endif %}">{{ details.paragraphs.long_paragraphs_count }} / {{ details.paragraphs.total_paragraphs }}</span>
+                                        </li>
+                                        <li class="d-flex justify-content-between">
+                                            <span>Long Sentences (>25 words):</span>
+                                            <span class="text-white font-mono {% if details.sentences.long_sentences_count > 0 %}text-warning{% endif %}">{{ details.sentences.long_sentences_count }} / {{ details.sentences.total_sentences }}</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 5. Centralized AI Recommendations -->
+                        {% if details.gemini_recommendations %}
+                            <div class="accordion-item bg-transparent border-0 mb-2">
+                                <h2 class="accordion-header" id="headingGemini">
+                                    <button class="accordion-button collapsed glass-card py-2 px-3 text-xs text-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGemini" aria-expanded="false" aria-controls="collapseGemini">
+                                        <i class="bi bi-cpu text-warning me-2"></i>AI Strategic Enhancements
+                                    </button>
+                                </h2>
+                                <div id="collapseGemini" class="accordion-collapse collapse" aria-labelledby="headingGemini" data-bs-parent="#seoAdvancedAccordion">
+                                    <div class="accordion-body glass-card mt-1 p-3 bg-black bg-opacity-40 text-xs text-slate-300">
+                                        {% if details.gemini_recommendations.title_optimization %}
+                                            <div class="mb-2">
+                                                <strong class="text-white">Optimized Title Suggestion:</strong>
+                                                <div class="p-2 rounded bg-black bg-opacity-35 mt-1 border border-secondary border-opacity-10 text-teal font-weight-bold">{{ details.gemini_recommendations.title_optimization }}</div>
+                                            </div>
+                                        {% endif %}
+                                        
+                                        {% if details.gemini_recommendations.meta_description %}
+                                            <div class="mb-2">
+                                                <strong class="text-white">Meta Description Suggestion:</strong>
+                                                <p class="mb-0 text-slate-400 mt-1 font-italic">{{ details.gemini_recommendations.meta_description }}</p>
+                                            </div>
+                                        {% endif %}
+
+                                        {% if details.gemini_recommendations.structural_changes %}
+                                            <div class="mb-2">
+                                                <strong class="text-white">Structural Recommendation:</strong>
+                                                <p class="mb-0 text-slate-400 mt-1">{{ details.gemini_recommendations.structural_changes }}</p>
+                                            </div>
+                                        {% endif %}
+
+                                        {% if details.gemini_recommendations.missing_keywords_to_add %}
+                                            <div class="mb-2">
+                                                <strong class="text-white">Semantics Keywords to Add:</strong>
+                                                <div class="d-flex flex-wrap gap-1.5 mt-1">
+                                                    {% for kw in details.gemini_recommendations.missing_keywords_to_add %}
+                                                        <span class="badge bg-secondary text-slate-300 font-mono py-1 px-1.5 rounded">{{ kw }}</span>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                        
+                    </div>
+                {% endif %}
+
+                <!-- Suggestions checklist fallback -->
+                <h6 class="text-white mb-2" style="font-size: 0.8rem;"><i class="bi bi-patch-check-fill text-indigo me-1.5"></i>Suggestions Checklist</h6>
+                <div class="glass-card p-3 mb-4" style="background: rgba(255,255,255,0.015);">
+                    {% if content.seo_analysis %}
+                        {% if content.seo_analysis.suggestions %}
+                            <ul class="list-unstyled mb-0 d-flex flex-column gap-2" style="font-size: 0.775rem;">
+                                {% for suggestion in content.seo_analysis.suggestions %}
+                                    <li class="d-flex align-items-start text-secondary">
+                                        <span class="text-warning me-2" style="font-size: 0.85rem;"><i class="bi bi-info-circle-fill"></i></span>
+                                        <span class="small" style="line-height: 1.4;">{{ suggestion }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <div class="text-success text-xs font-semibold py-1.5"><i class="bi bi-check-circle-fill me-1.5"></i>Zero SEO suggestions. Excellent job!</div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-3 text-muted small">No suggestions loaded.</div>
+                    {% endif %}
+                </div>
+
+                <!-- Configure Form -->
+                <h6 class="text-white mb-2" style="font-size: 0.8rem;"><i class="bi bi-sliders text-secondary me-1.5"></i>Recheck Keywords</h6>
+                <div class="glass-card p-3" style="background: rgba(255,255,255,0.015);">
+                    <form action="/content/view/{{ content.id }}/seo" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label for="seo-keywords" class="form-label-custom">Target Keywords (Comma Separated)</label>
+                            <input type="text" name="keywords" id="seo-keywords" class="form-control form-control-custom" value="{% if prompt_settings.get('keywords') %}{{ prompt_settings.get('keywords')|join(', ') }}{% endif %}" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary-custom btn-sm">
+                            <i class="bi bi-lightning-charge-fill me-1 text-warning"></i>Analyze SEO Scorecard
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- BOTTOM TOOLBAR ACTIONS -->
+        <div class="workspace-toolbar">
+            <!-- Left action items -->
+            <div class="d-flex gap-2">
+                <!-- Copy Button -->
+                <button type="button" id="copy-btn" class="btn btn-secondary-custom btn-sm py-1 px-3">
+                    <i class="bi bi-clipboard me-1.5"></i>Copy
+                </button>
+                
+                <!-- Save Button (only acts as trigger for Panel 2 edit form submission) -->
+                <button type="button" id="toolbar-save-btn" class="btn btn-secondary-custom btn-sm py-1 px-3 d-none">
+                    <i class="bi bi-save me-1.5"></i>Save Draft
+                </button>
+            </div>
+            
+            <!-- Right action items -->
+            <div class="dropdown">
+                <button class="btn btn-secondary-custom btn-sm py-1 px-3 dropdown-toggle text-teal" type="button" id="exportMenuBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-download me-1.5"></i>Export Center
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark-custom text-xs" aria-labelledby="exportMenuBtn" style="font-size: 0.725rem;">
+                    <li><a class="dropdown-item dropdown-item-custom py-2" href="/content/{{ content.id }}/export?format=pdf"><i class="bi bi-file-pdf text-danger me-2"></i>Export as PDF</a></li>
+                    <li><a class="dropdown-item dropdown-item-custom py-2" href="/content/{{ content.id }}/export?format=docx"><i class="bi bi-file-word text-primary me-2"></i>Export as Word (.docx)</a></li>
+                    <li><a class="dropdown-item dropdown-item-custom py-2" href="/content/{{ content.id }}/export?format=markdown"><i class="bi bi-filetype-md text-indigo me-2"></i>Export as Markdown</a></li>
+                    <li><a class="dropdown-item dropdown-item-custom py-2" href="/content/{{ content.id }}/export?format=txt"><i class="bi bi-file-earmark-text text-secondary me-2"></i>Export as Plain Text</a></li>
+                    <li><hr class="dropdown-divider dropdown-divider-custom"></li>
+                    <li><a class="dropdown-item dropdown-item-custom py-2" href="#" onclick="window.print()"><i class="bi bi-printer text-success me-2"></i>Print Asset</a></li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+<!-- AI Improvement Acceptance Modal -->
+<div class="modal fade" id="aiImproveModal" tabindex="-1" aria-labelledby="aiImproveModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dark-custom" style="max-width: 800px;">
+        <div class="modal-content glass-card glass-modal p-3">
+            <div class="modal-header border-0 pb-1.5">
+                <h5 class="modal-title text-white text-xs font-bold uppercase tracking-wider" id="aiImproveModalLabel"><i class="bi bi-sparkles text-indigo me-1.5"></i>AI Improvement Preview</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-3">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label-custom">Original Draft</label>
+                        <textarea id="ai-improve-original" class="form-control form-control-custom font-monospace text-xs" rows="14" readonly style="resize: none; background: rgba(255,255,255,0.02) !important; font-size: 0.75rem; line-height: 1.45;"></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label-custom">AI Improved Draft (Editable)</label>
+                        <textarea id="ai-improve-result" class="form-control form-control-custom font-monospace text-xs" rows="14" style="resize: none; border-color: rgba(99, 102, 241, 0.4); font-size: 0.75rem; line-height: 1.45;"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-1.5 gap-2">
+                <button type="button" class="btn btn-secondary-custom py-1.5 px-3 text-xs" data-bs-dismiss="modal">Discard Changes</button>
+                <button type="button" class="btn btn-primary-custom py-1.5 px-4 text-xs font-semibold" onclick="acceptAIChanges()">Accept & Update</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Marked.js CDN to compile Markdown in browser -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    // Tab switching controller
+    function switchTab(tabName) {
+        // Hide all panels
+        document.querySelectorAll('.tab-panel-view').forEach(p => p.classList.add('tab-hidden'));
+        
+        // Remove active state from tab buttons
+        document.querySelectorAll('.btn-outline-secondary-custom').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Show target panel
+        const targetPanel = document.getElementById(`panel-${tabName}`);
+        if (targetPanel) targetPanel.classList.remove('tab-hidden');
+        
+        // Set active button state
+        const activeBtn = document.getElementById(`tab-${tabName}`);
+        if (activeBtn) activeBtn.classList.add('active');
+        
+        // Update Bottom Toolbar state depending on selected Tab
+        const saveBtn = document.getElementById('toolbar-save-btn');
+        const copyBtn = document.getElementById('copy-btn');
+        
+        if (tabName === 'editor') {
+            if (saveBtn) saveBtn.classList.remove('d-none');
+            if (copyBtn) copyBtn.classList.add('d-none');
+        } else {
+            if (saveBtn) saveBtn.classList.add('d-none');
+            if (copyBtn) copyBtn.classList.remove('d-none');
+        }
+    }
+
+    // AJAX Content Improvement Handler
+    function applyAIImprovement() {
+        const action = document.getElementById('ai-improve-action').value;
+        const btn = document.getElementById('apply-improve-btn');
+        const contentId = "{{ content.id }}";
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        btn.disabled = true;
+        const origHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Refining...';
+        
+        fetch(`/content/improve/${contentId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({
+                action: action
+            })
+        })
+        .then(response => response.json().then(data => ({ status: response.status, body: data })))
+        .then(result => {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+            
+            if (result.status === 200 && result.body.success) {
+                document.getElementById('ai-improve-original').value = result.body.original;
+                document.getElementById('ai-improve-result').value = result.body.improved;
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('aiImproveModal'));
+                modal.show();
+            } else {
+                showToast(result.body.error || "Failed to refine copy using AI.", "danger");
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+            console.error(err);
+            showToast("Network error occurred during refinement.", "danger");
+        });
+    }
+
+    function acceptAIChanges() {
+        const resultText = document.getElementById('ai-improve-result').value;
+        const editBody = document.getElementById('edit-body');
+        const renderedNode = document.getElementById('rendered-content');
+        const rawMarkdownNode = document.getElementById('markdown-raw');
+        
+        if (editBody) editBody.value = resultText;
+        if (rawMarkdownNode) rawMarkdownNode.textContent = resultText;
+        if (renderedNode) {
+            renderedNode.innerHTML = (window.OplyraSecurity && window.OplyraSecurity.safeMarkedParse)
+                ? window.OplyraSecurity.safeMarkedParse(resultText)
+                : marked.parse(resultText);
+        }
+        
+        // Hide Modal
+        const modalElement = document.getElementById('aiImproveModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalElement);
+        if (modalInstance) modalInstance.hide();
+        
+        // Auto-save form via AJAX so the user context is updated immediately
+        const editorForm = document.getElementById('edit-content-form');
+        if (editorForm) {
+            const formData = new FormData(editorForm);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            fetch(editorForm.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-Token': csrfToken
+                },
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    showToast("AI Improvements saved successfully!", "success");
+                    // Re-run SEO analysis in the background silently
+                    fetch(`/content/view/{{ content.id }}/seo`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRF-Token': csrfToken
+                        },
+                        body: new URLSearchParams({
+                            'csrf_token': csrfToken,
+                            'keywords': document.getElementById('seo-keywords') ? document.getElementById('seo-keywords').value : ''
+                        })
+                    }).catch(() => {});
+                } else {
+                    showToast("Changes accepted to editor but failed to auto-save to database.", "warning");
+                }
+            })
+            .catch(() => {
+                showToast("Changes accepted to editor but failed to auto-save to database.", "warning");
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Render raw markdown inside visual dashboard wrapper
+        const rawMarkdownNode = document.getElementById('markdown-raw');
+        if (rawMarkdownNode) {
+            const rawMarkdown = rawMarkdownNode.textContent;
+            const renderedNode = document.getElementById('rendered-content');
+            if (renderedNode) {
+                renderedNode.innerHTML = (window.OplyraSecurity && window.OplyraSecurity.safeMarkedParse)
+                    ? window.OplyraSecurity.safeMarkedParse(rawMarkdown)
+                    : marked.parse(rawMarkdown);
+            }
+        }
+        
+        // Connect toolbar save button to submit the editor tab form
+        const toolbarSave = document.getElementById('toolbar-save-btn');
+        const editorForm = document.getElementById('edit-content-form');
+        if (toolbarSave && editorForm) {
+            toolbarSave.addEventListener('click', function() {
+                editorForm.submit();
+            });
+        }
+        
+        // Sync draft status label with select input changes dynamically
+        const editStatusSelect = document.getElementById('edit-status');
+        const statusLabel = document.getElementById('workspace-status-label');
+        if (editStatusSelect && statusLabel) {
+            editStatusSelect.addEventListener('change', function() {
+                const selectedVal = this.value;
+                statusLabel.textContent = selectedVal.charAt(0).toUpperCase() + selectedVal.slice(1);
+            });
+        }
+    });
+</script>
+<script src="{{ url_for('static', filename='js/content.js') }}"></script>
+{% endblock %}

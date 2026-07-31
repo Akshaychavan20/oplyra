@@ -1,0 +1,54 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Monitoring · Platform Admin{% endblock %}
+{% block page_title %}Monitoring{% endblock %}
+{% block content %}
+<div class="glass-card pa-panel mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <h3 class="mb-1">Platform health</h3>
+            <p class="text-secondary small mb-0">Reuses the same probes as <code>/health</code>, <code>/ready</code>, <code>/metrics</code>.</p>
+        </div>
+        <span class="pa-chip {% if health.ok %}pa-chip-ok{% else %}pa-chip-warn{% endif %}">{{ health.status }}</span>
+    </div>
+</div>
+
+<div class="pa-kpi-grid mb-3">
+    {% for name, check in health.checks.items() %}
+    <div class="glass-card pa-metric pa-kpi">
+        <div class="pa-metric-label pa-kpi-label">{{ name|replace('_', ' ')|title }}</div>
+        <div class="pa-metric-value pa-kpi-value" style="font-size:1rem;">
+            <span class="{% if check.ok %}text-success{% else %}text-danger{% endif %}">{{ check.detail }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="glass-card pa-panel">
+            <h3>Runtime metrics snapshot</h3>
+            <ul class="pa-list">
+                {% for key, val in metrics.items() %}
+                <li><span>{{ key }}</span><strong>{{ val }}</strong></li>
+                {% else %}
+                <li><span class="text-secondary">No in-process metrics yet</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+            <a class="btn btn-secondary-custom btn-sm mt-2" href="/metrics" target="_blank" rel="noopener">Open /metrics JSON</a>
+            <a class="btn btn-secondary-custom btn-sm mt-2" href="/health" target="_blank" rel="noopener">Open /health JSON</a>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="glass-card pa-panel">
+            <h3>Config summary</h3>
+            <ul class="pa-list">
+                <li><span>Storage</span><strong>{{ health.storage_provider }}</strong></li>
+                <li><span>Vector</span><strong>{{ health.vector_provider }}</strong></li>
+                <li><span>Embeddings</span><strong>{{ health.embedding_provider }}</strong></li>
+                <li><span>Default AI</span><strong>{{ health.default_ai_provider }}</strong></li>
+                <li><span>Celery eager</span><strong>{{ health.celery_eager }}</strong></li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

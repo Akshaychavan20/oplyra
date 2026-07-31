@@ -1,0 +1,57 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Billing · Platform Admin{% endblock %}
+{% block page_title %}Billing{% endblock %}
+{% block content %}
+<div class="pa-kpi-grid mb-3">
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Monthly revenue (MRR)</div><div class="pa-metric-value pa-kpi-value">${{ '%.2f'|format(data.mrr) }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Annual revenue (ARR)</div><div class="pa-metric-value pa-kpi-value">${{ '%.2f'|format(data.arr) }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Growth snapshot</div><div class="pa-metric-value pa-kpi-value" style="font-size:0.95rem;">{{ data.growth_label }}</div></div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="glass-card pa-panel">
+            <h3>Invoices</h3>
+            <div class="table-responsive">
+                <table class="table table-custom pa-table mb-0">
+                    <thead><tr><th>ID</th><th>Due</th><th>Paid</th><th>Date</th></tr></thead>
+                    <tbody>
+                        {% for inv in data.invoices %}
+                        <tr>
+                            <td>{{ inv.id }}</td>
+                            <td>${{ '%.2f'|format(inv.amount_due or 0) }}</td>
+                            <td>${{ '%.2f'|format(inv.amount_paid or 0) }}</td>
+                            <td>{{ inv.invoice_date.strftime('%Y-%m-%d') if inv.invoice_date else '—' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-secondary">No invoices recorded.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="glass-card pa-panel">
+            <h3>Payments</h3>
+            <div class="table-responsive">
+                <table class="table table-custom pa-table mb-0">
+                    <thead><tr><th>Invoice</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+                    <tbody>
+                        {% for p in data.payments %}
+                        <tr>
+                            <td>{{ p.invoice_id }}</td>
+                            <td>${{ '%.2f'|format(p.amount or 0) }}</td>
+                            <td>{{ p.status }}</td>
+                            <td>{{ p.payment_date.strftime('%Y-%m-%d') if p.payment_date else '—' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-secondary">No payments recorded. Coupons / Stripe sync can attach later without schema changes.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

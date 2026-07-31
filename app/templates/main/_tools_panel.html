@@ -1,0 +1,70 @@
+{# Enterprise Tool Center #}
+<div id="panel-tools" class="tab-panel tab-hidden">
+    <div class="tools-hub">
+        <div class="tools-hub-header mb-4">
+            <div>
+                <h2 class="text-white mb-1"><i class="bi bi-plugin text-indigo me-2"></i>Tool Center</h2>
+                <p class="text-secondary mb-0" style="font-size: 0.8rem;">
+                    MCP-ready tool platform for AI Agents — stubs today, unlimited integrations tomorrow.
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-secondary-custom btn-sm tools-tab-btn active" data-tab="installed">Installed</button>
+                <button type="button" class="btn btn-secondary-custom btn-sm tools-tab-btn" data-tab="marketplace">Marketplace</button>
+                <button type="button" class="btn btn-secondary-custom btn-sm tools-tab-btn" data-tab="history">History</button>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <input type="search" id="tools-search" class="form-control form-control-custom" placeholder="Search tools…">
+            </div>
+            <div class="col-md-6">
+                <select id="tools-category-filter" class="form-select form-control-custom">
+                    <option value="">All categories</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Installed -->
+        <div id="tools-panel-installed" class="tools-tab-panel">
+            <div id="tools-grid" class="tools-grid"></div>
+        </div>
+
+        <!-- Marketplace -->
+        <div id="tools-panel-marketplace" class="tools-tab-panel d-none">
+            <div id="tools-marketplace" class="tools-grid"></div>
+        </div>
+
+        <!-- History -->
+        <div id="tools-panel-history" class="tools-tab-panel d-none">
+            <div id="tools-history" class="tools-history"></div>
+        </div>
+
+        <!-- Run drawer -->
+        <div class="glass-card p-3 mt-4" id="tools-run-card">
+            <h6 class="text-white mb-3">Run Tool</h6>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <select id="tools-run-select" class="form-select form-control-custom"></select>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" id="tools-run-arg" class="form-control form-control-custom" placeholder="query / expression / url">
+                </div>
+                <div class="col-md-3">
+                    <button type="button" class="btn btn-primary-custom w-100" id="tools-run-btn">
+                        <i class="bi bi-play-fill me-1"></i>Execute
+                    </button>
+                </div>
+            </div>
+            <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" id="tools-use-agent">
+                <label class="form-check-label text-secondary small" for="tools-use-agent">
+                    Also run Research Agent with tool results (Agent Bridge)
+                </label>
+            </div>
+            <pre id="tools-run-output" class="tools-run-output mt-3 mb-0">Results appear here.</pre>
+            <div id="tools-run-error" class="text-danger small mt-2 d-none"></div>
+        </div>
+    </div>
+</div>

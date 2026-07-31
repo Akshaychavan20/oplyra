@@ -1,0 +1,55 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Storage · Platform Admin{% endblock %}
+{% block page_title %}Storage{% endblock %}
+{% block content %}
+<div class="pa-kpi-grid mb-3">
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Active provider</div><div class="pa-metric-value pa-kpi-value" style="font-size:1.1rem;">{{ data.provider }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Total usage</div><div class="pa-metric-value pa-kpi-value">{{ data.total_human }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Health</div><div class="pa-metric-value pa-kpi-value" style="font-size:1rem;">{% if data.health.ok %}ok{% else %}{{ data.health.detail }}{% endif %}</div></div>
+</div>
+<div class="glass-card pa-panel mb-3">
+    <h3>Providers</h3>
+    <div class="d-flex flex-wrap gap-2">
+        {% for p in data.providers %}
+        <span class="pa-chip {% if p == data.provider %}pa-chip-ok{% endif %}">{{ p|upper }}{% if p == data.provider %} · active{% endif %}</span>
+        {% endfor %}
+    </div>
+    <p class="small text-secondary mb-0 mt-2">S3 / GCS / Azure / Local via existing STORAGE_PROVIDER adapter — no secrets shown.</p>
+</div>
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="glass-card pa-panel">
+            <h3>Largest organizations</h3>
+            <ul class="pa-list">
+                {% for o in data.by_org %}
+                <li><span>{{ o.name }}</span><strong>{{ o.human }} · {{ o.files }} files</strong></li>
+                {% else %}
+                <li><span class="text-secondary">No assets</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="glass-card pa-panel">
+            <h3>Recent uploads</h3>
+            <div class="table-responsive">
+                <table class="table table-custom pa-table mb-0">
+                    <thead><tr><th>Name</th><th>Org</th><th>Size</th><th>When</th></tr></thead>
+                    <tbody>
+                        {% for a in data.recent %}
+                        <tr>
+                            <td>{{ a.name }}</td>
+                            <td>{{ a.organization_id }}</td>
+                            <td>{{ (a.file_size / 1024)|round(1) }} KB</td>
+                            <td>{{ a.created_at.strftime('%m-%d %H:%M') if a.created_at else '—' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-secondary">No uploads.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

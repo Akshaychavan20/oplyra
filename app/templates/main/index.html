@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Oplyra - Performance Marketing Powered by AI</title>
+    {% include 'partials/_head_brand.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/oplyra-brand.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/oplyra-typography.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Bootstrap 5 CSS & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <style>
+        :root {
+            --bg-black: #030712;
+            --bg-card: rgba(17, 24, 39, 0.45);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary-grad: linear-gradient(135deg, #818cf8 0%, #6366f1 50%, #3b82f6 100%);
+            --accent-purple: #818cf8;
+            --accent-blue: #3b82f6;
+            --text-main: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --emerald: #10b981;
+        }
+
+        body {
+            background-color: var(--bg-black);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            overflow-x: hidden;
+            letter-spacing: var(--tracking-body);
+        }
+
+        /* Ambient background glow effects */
+        .ambient-glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, rgba(59, 130, 246, 0.03) 50%, transparent 100%);
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .glow-1 { top: -10%; left: -10%; }
+        .glow-2 { top: 40%; right: -15%; }
+        .glow-3 { bottom: 10%; left: -10%; }
+
+        /* Typography Helper Classes */
+        .gradient-text {
+            background: linear-gradient(135deg, #c7d2fe 0%, #818cf8 50%, #60a5fa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .gradient-accent-text {
+            background: var(--primary-grad);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Sticky Blurred Navbar */
+        .navbar-landing {
+            background: transparent;
+            border-bottom: 1px solid transparent;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 1050;
+            padding: 2rem 0;
+        }
+        
+        .navbar-landing.scrolled {
+            background: rgba(3, 7, 18, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.125rem 0;
+        }
+        
+        .nav-link-custom {
+            color: var(--text-secondary) !important;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: color 0.3s;
+            margin: 0 0.5rem;
+        }
+        
+        .nav-link-custom:hover {
+            color: var(--text-main) !important;
+        }
+
+        /* Premium Buttons */
+        .btn-landing-primary {
+            background: var(--primary-grad);
+            color: #white;
+            border: none;
+            border-radius: 99px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            padding: 0.75rem 1.75rem;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.25);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff !important;
+            text-decoration: none;
+        }
+        
+        .btn-landing-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
+        }
+        
+        .btn-landing-secondary {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 99px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 0.75rem 1.75rem;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+        
+        .btn-landing-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+            color: #white;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            padding: 10rem 0 6rem 0;
+            position: relative;
+            z-index: 2;
+        }
+
+        .badge-hero {
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            color: var(--accent-purple);
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            padding: 0.45rem 1.15rem;
+            border-radius: 99px;
+            margin-bottom: 2rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .hero-title {
+            font-size: var(--text-display);
+            font-weight: var(--font-weight-bold);
+            letter-spacing: var(--tracking-display);
+            line-height: var(--leading-tight);
+            margin-bottom: 1.5rem;
+        }
+        
+        .hero-subtitle {
+            font-size: var(--text-body-lg);
+            font-weight: var(--font-weight-regular);
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 2.5rem auto;
+            line-height: var(--leading-relaxed);
+        }
+
+        /* Mockup Dashboard Styling */
+        .mockup-wrapper {
+            background: rgba(17, 24, 39, 0.35);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 
+                        inset 0 1px 1px rgba(255, 255, 255, 0.1);
+            padding: 0.5rem;
+            margin-top: 4rem;
+            position: relative;
+            z-index: 3;
+            transform: perspective(1000px) rotateX(2deg);
+            transition: all 0.5s;
+        }
+        
+        .mockup-wrapper:hover {
+            transform: perspective(1000px) rotateX(0deg) translateY(-5px);
+            border-color: rgba(99, 102, 241, 0.2);
+            box-shadow: 0 30px 80px rgba(99, 102, 241, 0.08), 
+                        0 40px 90px rgba(0, 0, 0, 0.7);
+        }
+
+        .mockup-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .mockup-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.12);
+        }
+        .mockup-dot.red { background: #ef4444; }
+        .mockup-dot.yellow { background: #f59e0b; }
+        .mockup-dot.green { background: #10b981; }
+
+        .mockup-body {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            min-height: 480px;
+            background: #090d16;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .mockup-sidebar {
+            border-right: 1px solid var(--border-color);
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .mockup-sidebar-item {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+        }
+        
+        .mockup-sidebar-item.active {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .mockup-content {
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Glassmorphic Cards */
+        .glass-card-landing {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2.25rem;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            z-index: 2;
+        }
+        
+        .glass-card-landing:hover {
+            transform: translateY(-5px);
+            border-color: rgba(99, 102, 241, 0.25);
+            background: rgba(17, 24, 39, 0.6);
+            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.05);
+        }
+
+        .card-icon-wrapper {
+            width: 46px;
+            height: 46px;
+            border-radius: 10px;
+            background: rgba(99, 102, 241, 0.06);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            color: var(--accent-purple);
+            font-size: 1.25rem;
+            transition: all 0.3s;
+        }
+        
+        .glass-card-landing:hover .card-icon-wrapper {
+            background: var(--primary-grad);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+        }
+
+        /* Section Layouts */
+        .section-padding {
+            padding: 8rem 0;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .section-header {
+            margin-bottom: 4rem;
+            text-align: center;
+        }
+        
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 1rem;
+        }
+        
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            max-width: 540px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Social Proof ticker */
+        .social-proof-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 2rem 4rem;
+            opacity: 0.65;
+            transition: opacity 0.3s;
+        }
+        
+        .social-proof-grid:hover {
+            opacity: 0.9;
+        }
+        
+        .social-proof-item {
+            font-weight: 700;
+            font-size: 1rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Timeline style */
+        .timeline-container {
+            position: relative;
+            margin-top: 3rem;
+        }
+        
+        .timeline-line {
+            position: absolute;
+            top: 40px;
+            bottom: 40px;
+            left: 50%;
+            width: 1px;
+            background: linear-gradient(to bottom, rgba(99, 102, 241, 0) 0%, rgba(99, 102, 241, 0.25) 20%, rgba(59, 130, 246, 0.25) 80%, rgba(59, 130, 246, 0) 100%);
+            transform: translateX(-50%);
+        }
+        
+        .timeline-step {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4rem;
+            position: relative;
+        }
+        
+        .timeline-content {
+            width: 45%;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: border-color 0.3s;
+        }
+        
+        .timeline-step:hover .timeline-content {
+            border-color: rgba(99, 102, 241, 0.2);
+        }
+        
+        .timeline-badge {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #090d16;
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-purple);
+            font-weight: 700;
+            font-size: 0.85rem;
+            z-index: 5;
+            transition: all 0.3s;
+        }
+        
+        .timeline-step:hover .timeline-badge {
+            background: var(--primary-grad);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+        }
+        
+        .timeline-content-right {
+            text-align: right;
+        }
+
+        /* Traditional vs Oplyra Comparison */
+        .comp-card {
+            background: rgba(17, 24, 39, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2.5rem;
+            height: 100%;
+        }
+        
+        .comp-card.premium {
+            border-color: rgba(99, 102, 241, 0.25);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.03), rgba(59, 130, 246, 0.01));
+            box-shadow: 0 10px 40px rgba(99, 102, 241, 0.03);
+        }
+        
+        .comp-tag {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.25rem 0.65rem;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 1.25rem;
+        }
+        
+        .comp-tag.red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        
+        .comp-tag.green {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+        
+        .comp-list-item {
+            display: flex;
+            gap: 12px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.25rem;
+        }
+        
+        .comp-list-item i {
+            font-size: 1rem;
+        }
+
+        /* Interactive Previews tabs */
+        .preview-tabs {
+            display: inline-flex;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            padding: 0.35rem;
+            border-radius: 99px;
+            margin-bottom: 3rem;
+        }
+        
+        .preview-tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.55rem 1.5rem;
+            border-radius: 99px;
+            transition: all 0.3s;
+        }
+        
+        .preview-tab-btn.active {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-main);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        /* Pricing Card Highlighted */
+        .pricing-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 3rem 2.25rem;
+            position: relative;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .pricing-card.featured {
+            border-color: rgba(99, 102, 241, 0.4);
+            background: linear-gradient(180deg, rgba(99, 102, 241, 0.04) 0%, rgba(3, 7, 18, 0) 100%);
+            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.08);
+        }
+        
+        .pricing-card.featured::before {
+            content: "POPULAR";
+            position: absolute;
+            top: 1.25rem;
+            right: 1.25rem;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            background: var(--primary-grad);
+            padding: 0.25rem 0.65rem;
+            border-radius: 4px;
+            color: white;
+        }
+
+        .price-text {
+            font-size: 2.75rem;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.03em;
+        }
+        
+        .price-period {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Accordion Custom Styling */
+        .accordion-landing {
+            max-width: 760px;
+            margin: 0 auto;
+        }
+        
+        .accordion-item-landing {
+            background: rgba(17, 24, 39, 0.25);
+            border: 1px solid var(--border-color);
+            border-radius: 12px !important;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        
+        .accordion-button-landing {
+            background: transparent !important;
+            color: var(--text-main) !important;
+            box-shadow: none !important;
+            padding: 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border: none;
+            width: 100%;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .accordion-button-landing::after {
+            display: none;
+        }
+        
+        .accordion-body-landing {
+            padding: 0 1.5rem 1.5rem 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        /* Footer Grid */
+        .footer-landing {
+            background: #02040a;
+            border-top: 1px solid var(--border-color);
+            padding: 5rem 0 2rem 0;
+            font-size: 0.825rem;
+            color: var(--text-secondary);
+        }
+        
+        .footer-title {
+            color: var(--text-main);
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+        }
+        
+        .footer-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+            display: block;
+            margin-bottom: 0.75rem;
+        }
+        
+        .footer-link:hover {
+            color: var(--text-main);
+        }
+
+        /* Scroll Progress Bar */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--primary-grad);
+            z-index: 1060;
+            width: 0%;
+        }
+
+        /* Micro animation reveal elements on scroll */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+        
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        @media (max-width: 768px) {
+            .hero-title { font-size: 2.5rem; }
+            .timeline-line { display: none; }
+            .timeline-content { width: 100%; text-align: left; }
+            .timeline-badge { display: none; }
+            .timeline-step { flex-direction: column; align-items: flex-start; margin-bottom: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    {% from 'partials/_logo.html' import OplyraLogo, oplyra_logo, oplyra_logo_defs %}
+    {{ oplyra_logo_defs() }}
+
+    <!-- Scroll Progress Indicator -->
+    <div class="scroll-progress" id="progress-bar"></div>
+    
+    <!-- Ambient Background Lighting Glows -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+    <div class="ambient-glow glow-3"></div>
+
+    <!-- ==========================================
+         NAVIGATION SECTION
+         ========================================== -->
+    <nav class="navbar navbar-landing fixed-top navbar-expand-lg navbar-dark" id="landing-navbar">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                {{ oplyra_logo('landing', '#') }}
+            </a>
+            
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-controls="navMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navMenu">
+                <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link nav-link-custom" href="#features">Features</a></li>
+                    <li class="nav-item"><a class="nav-link nav-link-custom" href="#workflow">Workflow</a></li>
+                    <li class="nav-item"><a class="nav-link nav-link-custom" href="#preview">Preview</a></li>
+                    <li class="nav-item"><a class="nav-link nav-link-custom" href="#pricing">Pricing</a></li>
+                    <li class="nav-item"><a class="nav-link nav-link-custom" href="#faq">FAQs</a></li>
+                </ul>
+                
+                <div class="d-flex align-items-center gap-3">
+                    <a href="{{ url_for('auth.login') }}" class="btn-landing-secondary py-2 px-4 fs-7">Login</a>
+                    <a href="{{ url_for('auth.register') }}" class="btn-landing-primary py-2 px-4 fs-7">Get Started</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ==========================================
+         HERO SECTION
+         ========================================== -->
+    <section class="hero-section text-center">
+        <div class="container">
+            <div class="badge-hero">
+                <i class="bi bi-stars"></i> Oplyra Platform
+            </div>
+            
+            <h1 class="hero-title text-white">
+                Performance Marketing <br>
+                <span class="gradient-accent-text">Powered by AI</span>
+            </h1>
+            
+            <p class="hero-subtitle">
+                Plan, Create, Optimize and Scale your entire marketing content workflow from one intelligent platform.
+            </p>
+            
+            <div class="d-flex justify-content-center gap-3 align-items-center">
+                <a href="{{ url_for('auth.register') }}" class="btn-landing-primary">Get Started Free</a>
+                <a href="#preview" class="btn-landing-secondary"><i class="bi bi-play-fill me-1.5 fs-5"></i>Watch Demo</a>
+            </div>
+
+            <!-- Product Dashboard Mockup -->
+            <div class="mockup-wrapper">
+                <div class="mockup-header">
+                    <span class="mockup-dot red"></span>
+                    <span class="mockup-dot yellow"></span>
+                    <span class="mockup-dot green"></span>
+                    <span class="text-secondary small ms-2" style="font-size: 0.65rem;">app.oplyra.com/dashboard</span>
+                </div>
+                <div class="mockup-body">
+                    <!-- Left sidebar mockup -->
+                    <div class="mockup-sidebar">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            {{ oplyra_logo('mockup', href=none) }}
+                        </div>
+                        <div class="mockup-sidebar-item active"><i class="bi bi-grid-1x2"></i> Dashboard</div>
+                        <div class="mockup-sidebar-item"><i class="bi bi-file-text"></i> Content Studio</div>
+                        <div class="mockup-sidebar-item"><i class="bi bi-folder"></i> Campaign Projects</div>
+                        <div class="mockup-sidebar-item"><i class="bi bi-graph-up"></i> Analytics</div>
+                        <div class="mockup-sidebar-item"><i class="bi bi-sliders"></i> System Settings</div>
+                    </div>
+                    
+                    <!-- Content area mockup -->
+                    <div class="mockup-content text-start">
+                        <!-- Stats Grid -->
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="p-3 rounded-3" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color);">
+                                    <div class="text-secondary small" style="font-size: 0.65rem;">Total Projects</div>
+                                    <div class="fs-4 text-white font-weight-bold my-1">12</div>
+                                    <span class="text-success small" style="font-size: 0.6rem;"><i class="bi bi-arrow-up-right me-1"></i>+24% this week</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3 rounded-3" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color);">
+                                    <div class="text-secondary small" style="font-size: 0.65rem;">Generated Copies</div>
+                                    <div class="fs-4 text-white font-weight-bold my-1">428</div>
+                                    <span class="text-success small" style="font-size: 0.6rem;"><i class="bi bi-arrow-up-right me-1"></i>+12% this week</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3 rounded-3" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color);">
+                                    <div class="text-secondary small" style="font-size: 0.65rem;">Average SEO Score</div>
+                                    <div class="fs-4 text-white font-weight-bold my-1">84%</div>
+                                    <span class="text-indigo small" style="font-size: 0.6rem;"><i class="bi bi-award me-1"></i>Grade A Grade</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Content version lists mockup -->
+                        <div class="p-3 rounded-3 h-100" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color);">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-white small" style="font-weight: 600; font-size: 0.725rem;">Active Campaign Channels</span>
+                                <span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981; font-size: 0.6rem;">All Networks Active</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-borderless mb-0 align-middle" style="font-size: 0.7rem;">
+                                    <tbody>
+                                        <tr class="border-bottom border-secondary border-opacity-10">
+                                            <td><i class="bi bi-facebook text-primary me-2"></i>Facebook Campaign Ad Copy</td>
+                                            <td><span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Ready</span></td>
+                                            <td class="text-secondary">SEO Rating: 92/100</td>
+                                        </tr>
+                                        <tr class="border-bottom border-secondary border-opacity-10">
+                                            <td><i class="bi bi-envelope-fill text-warning me-2"></i>Affiliate Review Newsletter</td>
+                                            <td><span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Ready</span></td>
+                                            <td class="text-secondary">SEO Rating: 86/100</td>
+                                        </tr>
+                                        <tr>
+                                            <td><i class="bi bi-journal-text text-info me-2"></i>Product Comparison Review</td>
+                                            <td><span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Ready</span></td>
+                                            <td class="text-secondary">SEO Rating: 94/100</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SOCIAL PROOF SECTION
+         ========================================== -->
+    <section class="section-padding py-4 text-center border-top border-bottom border-secondary border-opacity-10" style="background: rgba(255,255,255,0.01);">
+        <div class="container">
+            <p class="text-secondary mb-4 small" style="font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">Trusted by teams at</p>
+            <div class="social-proof-grid">
+                <span class="social-proof-item"><i class="bi bi-briefcase me-1"></i>Affiliate Marketers</span>
+                <span class="social-proof-item"><i class="bi bi-diagram-3 me-1"></i>Marketing Agencies</span>
+                <span class="social-proof-item"><i class="bi bi-pen me-1"></i>Content Teams</span>
+                <span class="social-proof-item"><i class="bi bi-graph-up-arrow me-1"></i>Performance Marketers</span>
+                <span class="social-proof-item"><i class="bi bi-people me-1"></i>Marketing Consultants</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         FEATURES SECTION
+         ========================================== -->
+    <section id="features" class="section-padding">
+        <div class="container">
+            <div class="section-header reveal">
+                <h2 class="section-title text-white">Advanced SaaS Suite for Growth</h2>
+                <p class="section-subtitle">Plan campaigns, write highly targeted copy, analyze performance indicators, and distribute content in seconds.</p>
+            </div>
+            
+            <div class="row g-4 reveal">
+                <div class="col-md-4">
+                    <div class="glass-card-landing">
+                        <div class="card-icon-wrapper"><i class="bi bi-pencil-square"></i></div>
+                        <h5 class="text-white mb-2" style="font-weight: 600;">AI Content Studio</h5>
+                        <p class="text-secondary small mb-0" style="line-height: 1.55;">Generate high-conversion blog posts, email copy, reviews, and social captions with advanced settings.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="glass-card-landing">
+                        <div class="card-icon-wrapper"><i class="bi bi-kanban"></i></div>
+                        <h5 class="text-white mb-2" style="font-weight: 600;">Campaign Workspace</h5>
+                        <p class="text-secondary small mb-0" style="line-height: 1.55;">Manage multi-channel campaigns, allocate budgets, schedule postings, and coordinate across assets.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="glass-card-landing">
+                        <div class="card-icon-wrapper"><i class="bi bi-search"></i></div>
+                        <h5 class="text-white mb-2" style="font-weight: 600;">SEO Optimization</h5>
+                        <p class="text-secondary small mb-0" style="line-height: 1.55;">Audits heading density, readability metrics (Flesch scoring), and density to guarantee organic traffic.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="glass-card-landing">
+                        <div class="card-icon-wrapper"><i class="bi bi-lightning-charge"></i></div>
+                        <h5 class="text-white mb-2" style="font-weight: 600;">Smart Automation</h5>
+                        <p class="text-secondary small mb-0" style="line-height: 1.55;">Trigger automated workflows that generate content drafts, review parameters, and post directly to socials.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="glass-card-landing">
+                        <div class="card-icon-wrapper"><i class="bi bi-graph-up"></i></div>
+                        <h5 class="text-white mb-2" style="font-weight: 600;">Analytics Dashboard</h5>
+                        <p class="text-secondary small mb-0" style="line-height: 1.55;">Aggregated tracking of total projects, content counts, API usage logs, and formats distribution stats.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="glass-card-landing">
+                        <div class="card-icon-wrapper"><i class="bi bi-file-pdf"></i></div>
+                        <h5 class="text-white mb-2" style="font-weight: 600;">PDF Exports</h5>
+                        <p class="text-secondary small mb-0" style="line-height: 1.55;">Download formatted content drafts with layout headings, meta details, and parameters as clean PDFs.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         HOW IT WORKS SECTION
+         ========================================== -->
+    <section id="workflow" class="section-padding" style="background: rgba(255, 255, 255, 0.01);">
+        <div class="container">
+            <div class="section-header reveal">
+                <h2 class="section-title text-white">Modern Marketing Lifecycle</h2>
+                <p class="section-subtitle">Scale campaign output through an organized automation lifecycle built for rapid content distribution.</p>
+            </div>
+            
+            <div class="timeline-container reveal">
+                <div class="timeline-line"></div>
+                
+                <!-- Step 1 -->
+                <div class="timeline-step">
+                    <div class="timeline-content timeline-content-left">
+                        <h5 class="text-white mb-2" style="font-weight: 600;">Create Workspace</h5>
+                        <p class="text-secondary small mb-0" style="line-height: 1.55;">Initialize your project container space, set target networks, allocate budgets, and group content topics.</p>
+                    </div>
+                    <div class="timeline-badge">01</div>
+                    <div style="width: 45%;"></div>
+                </div>
+                
+                <!-- Step 2 -->
+                <div class="timeline-step">
+                    <div style="width: 45%;"></div>
+                    <div class="timeline-badge">02</div>
+                    <div class="timeline-content timeline-content-right">
+                        <h5 class="text-white mb-2" style="font-weight: 600;">Generate Content</h5>
+                        <p class="text-secondary small mb-0" style="line-height: 1.55;">Submit keyword settings and copy formats. Centralized prompt layouts draft structured drafts using state-of-the-art AI.</p>
+                    </div>
+                </div>
+                
+                <!-- Step 3 -->
+                <div class="timeline-step">
+                    <div class="timeline-content timeline-content-left">
+                        <h5 class="text-white mb-2" style="font-weight: 600;">Optimize Campaign</h5>
+                        <p class="text-secondary small mb-0" style="line-height: 1.55;">Audit readability scoring, refine density parameters, export clean reports, and adjust targeting details.</p>
+                    </div>
+                    <div class="timeline-badge">03</div>
+                    <div style="width: 45%;"></div>
+                </div>
+                
+                <!-- Step 4 -->
+                <div class="timeline-step">
+                    <div style="width: 45%;"></div>
+                    <div class="timeline-badge">04</div>
+                    <div class="timeline-content timeline-content-right">
+                        <h5 class="text-white mb-2" style="font-weight: 600;">Scale Results</h5>
+                        <p class="text-secondary small mb-0" style="line-height: 1.55;">Schedule posts directly, encrypt credentials keys for integrations, and audit logs of campaign progress.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         WHY OPLYRA COMPARISON
+         ========================================== -->
+    <section class="section-padding">
+        <div class="container">
+            <div class="section-header reveal">
+                <h2 class="section-title text-white">Traditional vs Oplyra Workflow</h2>
+                <p class="section-subtitle">Discover how centralizing marketing content production reduces overhead costs and speeds execution.</p>
+            </div>
+            
+            <div class="row g-4 reveal">
+                <div class="col-md-6">
+                    <div class="comp-card">
+                        <span class="comp-tag red">Traditional Path</span>
+                        <h4 class="text-white mb-4" style="font-weight: 700;">Fragmented Operations</h4>
+                        
+                        <div class="comp-list-item">
+                            <i class="bi bi-x-circle text-danger"></i>
+                            <span>Writing manually or using generic AI chat boxes with separate prompt notes.</span>
+                        </div>
+                        <div class="comp-list-item">
+                            <i class="bi bi-x-circle text-danger"></i>
+                            <span>N+1 copy/paste formatting checks between text files, word processors, and CMS tools.</span>
+                        </div>
+                        <div class="comp-list-item">
+                            <i class="bi bi-x-circle text-danger"></i>
+                            <span>SEO parameters evaluated post-writing using expensive third-party extension packages.</span>
+                        </div>
+                        <div class="comp-list-item">
+                            <i class="bi bi-x-circle text-danger"></i>
+                            <span>Scattered billing limits, undocumented API token costs, and high manual oversight.</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="comp-card premium">
+                        <span class="comp-tag green">Oplyra Workflow</span>
+                        <h4 class="text-white mb-4" style="font-weight: 700;">10x Operations Speed</h4>
+                        
+                        <div class="comp-list-item">
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            <span>Structured AI Gateway templates with central cache controls saving 50% token costs.</span>
+                        </div>
+                        <div class="comp-list-item">
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            <span>Automated formatting layouts for reviews, comparison models, blog posts, and captions.</span>
+                        </div>
+                        <div class="comp-list-item">
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            <span>Real-time SEO scoring (density limits, Flesch grade, heading lists) baked into the editor.</span>
+                        </div>
+                        <div class="comp-list-item">
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            <span>Encrypted integration credentials, detailed audit logs, and automatic API limits checking.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         PRODUCT PREVIEW SECTION
+         ========================================== -->
+    <section id="preview" class="section-padding" style="background: rgba(255,255,255,0.01);">
+        <div class="container text-center">
+            <div class="section-header reveal">
+                <h2 class="section-title text-white">Experience Oplyra</h2>
+                <p class="section-subtitle">Take a interactive look at how our campaign panels, content tools, and SEO analytics systems look in action.</p>
+            </div>
+            
+            <!-- Tab switches -->
+            <div class="preview-tabs reveal">
+                <button class="preview-tab-btn active" onclick="switchPreview(0)">Content Studio</button>
+                <button class="preview-tab-btn" onclick="switchPreview(1)">Campaign Manager</button>
+                <button class="preview-tab-btn" onclick="switchPreview(2)">SEO Audits</button>
+                <button class="preview-tab-btn" onclick="switchPreview(3)">Analytics Dashboard</button>
+            </div>
+            
+            <!-- Tab contents -->
+            <div class="mockup-wrapper reveal" style="max-width: 900px; margin: 0 auto;">
+                <div class="mockup-header text-start">
+                    <span class="mockup-dot red"></span>
+                    <span class="mockup-dot yellow"></span>
+                    <span class="mockup-dot green"></span>
+                    <span class="text-secondary small ms-2" id="preview-url" style="font-size: 0.65rem;">app.oplyra.com/content-studio</span>
+                </div>
+                
+                <!-- Display area -->
+                <div class="p-4 text-start" id="preview-display" style="background: #090d16; min-height: 380px; border-radius: 0 0 12px 12px;">
+                    <!-- Default: Content Studio -->
+                    <div id="preview-tab-0">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="glass-card p-3 h-100" style="background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.05);">
+                                    <h6 class="text-white small mb-3">Generation Parameters</h6>
+                                    <div class="mb-2.5">
+                                        <label class="text-secondary small mb-1" style="font-size: 0.65rem;">Content Format</label>
+                                        <div class="p-2 rounded-2 small text-white border" style="background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.05); font-size: 0.725rem;">Affiliate Product Review</div>
+                                    </div>
+                                    <div class="mb-2.5">
+                                        <label class="text-secondary small mb-1" style="font-size: 0.65rem;">Target Keyword</label>
+                                        <div class="p-2 rounded-2 small text-white border" style="background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.05); font-size: 0.725rem;">best portable mechanical keyboard</div>
+                                    </div>
+                                    <button class="btn btn-primary-custom w-100 py-1.5 small text-white mt-2" style="font-size: 0.7rem;"><i class="bi bi-lightning-charge me-1.5"></i>Generate Copy</button>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="p-3 rounded-3 border h-100" style="background: rgba(255,255,255,0.01); border-color: rgba(255,255,255,0.05);">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <span class="text-white small" style="font-weight: 600; font-size: 0.725rem;">Draft Output</span>
+                                        <span class="badge bg-success" style="font-size: 0.6rem;">A Grade Score</span>
+                                    </div>
+                                    <h6 class="text-white font-weight-bold mb-2" style="font-size: 0.85rem;">Top 5 Portable Mechanical Keyboards to Optimize Your Setup in 2026</h6>
+                                    <p class="text-secondary small" style="font-size: 0.725rem; line-height: 1.5;">When looking for the best portable mechanical keyboard, portability and layout structure represent the two most critical metrics. Standard layouts are bulky, but compact form factors offer...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         TESTIMONIALS SECTION
+         ========================================== -->
+    <section class="section-padding">
+        <div class="container">
+            <div class="section-header reveal">
+                <h2 class="section-title text-white">Loved by Growth Marketers</h2>
+                <p class="section-subtitle">Hear from performance agencies, creators, and consultants scaling marketing campaigns using Oplyra.</p>
+            </div>
+            
+            <div class="row g-4 reveal">
+                <div class="col-md-4">
+                    <div class="glass-card-landing">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div style="width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%); display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; font-size: 0.85rem;">AR</div>
+                            <div>
+                                <h6 class="text-white mb-0" style="font-size: 0.85rem; font-weight: 600;">Alex Rivera</h6>
+                                <span class="text-secondary small" style="font-size: 0.65rem;">CEO, GrowthGrid Agency</span>
+                            </div>
+                        </div>
+                        <div class="text-warning mb-2" style="font-size: 0.75rem;"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i></div>
+                        <p class="text-secondary small mb-0" style="line-height: 1.55;">"Oplyra's Centralized prompt layouts and template studio saved us thousands in content production costs while increasing our output volume 4x in two weeks."</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="glass-card-landing">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div style="width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #34d399 0%, #059669 100%); display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; font-size: 0.85rem;">SM</div>
+                            <div>
+                                <h6 class="text-white mb-0" style="font-size: 0.85rem; font-weight: 600;">Sarah Miller</h6>
+                                <span class="text-secondary small" style="font-size: 0.65rem;">Lead Creator, LinkBuilders</span>
+                            </div>
+                        </div>
+                        <div class="text-warning mb-2" style="font-size: 0.75rem;"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i></div>
+                        <p class="text-secondary small mb-0" style="line-height: 1.55;">"The real-time SEO score and keyword metrics are exceptionally helpful. We no longer need separate browser check extensions before publishing review pages."</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="glass-card-landing">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div style="width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%); display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; font-size: 0.85rem;">DK</div>
+                            <div>
+                                <h6 class="text-white mb-0" style="font-size: 0.85rem; font-weight: 600;">David Kim</h6>
+                                <span class="text-secondary small" style="font-size: 0.65rem;">Affiliate Consultant, SoloLaunch</span>
+                            </div>
+                        </div>
+                        <div class="text-warning mb-2" style="font-size: 0.75rem;"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i></div>
+                        <p class="text-secondary small mb-0" style="line-height: 1.55;">"Symmetric encryption of key tokens gives me peace of mind when scheduling Facebook posts. Centralized API gateways and Redis caching make it extremely fast."</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         PRICING SECTION
+         ========================================== -->
+    <section id="pricing" class="section-padding" style="background: rgba(255,255,255,0.01);">
+        <div class="container">
+            <div class="section-header reveal">
+                <h2 class="section-title text-white">Predictable, Transparent Pricing</h2>
+                <p class="section-subtitle">Get started for free or upgrade to a premium marketer plan to save custom API integration keys.</p>
+            </div>
+            
+            <div class="row g-4 reveal align-items-stretch">
+                <!-- Free Plan -->
+                <div class="col-lg-4">
+                    <div class="pricing-card">
+                        <div class="mb-4">
+                            <h5 class="text-white font-weight-bold mb-1" style="font-size: 1.15rem;">Free Creator</h5>
+                            <p class="text-secondary small" style="font-size: 0.75rem;">Best for exploring content generation formats.</p>
+                            <div class="d-flex align-items-baseline my-3">
+                                <span class="price-text">$0</span>
+                                <span class="price-period ms-1">/ forever</span>
+                            </div>
+                        </div>
+                        <ul class="list-unstyled text-secondary small d-flex flex-column gap-2 mb-4" style="font-size: 0.775rem;">
+                            <li><i class="bi bi-check2 text-indigo me-2"></i>Generate up to 10 copies</li>
+                            <li><i class="bi bi-check2 text-indigo me-2"></i>3 Workspace Campaigns</li>
+                            <li><i class="bi bi-check2 text-indigo me-2"></i>Standard AI access limits</li>
+                            <li class="text-muted"><i class="bi bi-x text-danger me-2"></i>No custom API keys integration</li>
+                            <li class="text-muted"><i class="bi bi-x text-danger me-2"></i>No PDF document exports</li>
+                        </ul>
+                        <a href="{{ url_for('auth.register') }}" class="btn-landing-secondary w-100 py-2.5 mt-auto text-center">Get Started Free</a>
+                    </div>
+                </div>
+                
+                <!-- Pro Plan -->
+                <div class="col-lg-4">
+                    <div class="pricing-card featured">
+                        <div class="mb-4">
+                            <h5 class="text-white font-weight-bold mb-1" style="font-size: 1.15rem;">Pro Marketer</h5>
+                            <p class="text-secondary small" style="font-size: 0.75rem;">Best for active marketers and growing teams.</p>
+                            <div class="d-flex align-items-baseline my-3">
+                                <span class="price-text">$29</span>
+                                <span class="price-period ms-1">/ month</span>
+                            </div>
+                        </div>
+                        <ul class="list-unstyled text-secondary small d-flex flex-column gap-2 mb-4" style="font-size: 0.775rem;">
+                            <li><i class="bi bi-check2 text-indigo me-2"></i>Generate up to 100 copies</li>
+                            <li><i class="bi bi-check2 text-indigo me-2"></i>25 Workspace Campaigns</li>
+                            <li><i class="bi bi-check2 text-indigo me-2"></i>High priority AI gateway execution</li>
+                            <li><i class="bi bi-check2 text-indigo me-2"></i>Save custom AI API key</li>
+                            <li><i class="bi bi-check2 text-indigo me-2"></i>PDF document exports enabled</li>
+                        </ul>
+                        <a href="{{ url_for('auth.register') }}" class="btn-landing-primary w-100 py-2.5 mt-auto text-center">Upgrade to Pro</a>
+                    </div>
+                </div>
+                
+                <!-- Enterprise Plan -->
+                <div class="col-lg-4">
+                    <div class="pricing-card">
+                        <div class="mb-4">
+                            <h5 class="text-white font-weight-bold mb-1" style="font-size: 1.15rem;">Enterprise Suite</h5>
+                            <p class="text-secondary small" style="font-size: 0.75rem;">Best for agencies scaling massive performance channels.</p>
+                            <div class="d-flex align-items-baseline my-3">
+                                <span class="price-text">Custom</span>
+                                <span class="price-period ms-1">/ tailored pricing</span>
+                            </div>
+                        </div>
+                        <ul class="list-unstyled text-secondary small d-flex flex-column gap-2 mb-4" style="font-size: 0.775rem;">
+                            <li><i class="bi bi-check2 text-indigo me-2"></i>Unlimited generated copies</li>
+                            <li><i class="bi bi-check2 text-indigo me-2"></i>Unlimited Workspace Campaigns</li>
+                            <li><i class="bi bi-check2 text-indigo me-2"></i>Custom API key override limits</li>
+                            <li><i class="bi bi-check2 text-indigo me-2"></i>Dedicated support & custom endpoints</li>
+                            <li><i class="bi bi-check2 text-indigo me-2"></i>Agency onboarding guidance</li>
+                        </ul>
+                        <a href="{{ url_for('auth.register') }}" class="btn-landing-secondary w-100 py-2.5 mt-auto text-center">Contact Sales</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         FAQ SECTION
+         ========================================== -->
+    <section id="faq" class="section-padding">
+        <div class="container">
+            <div class="section-header reveal">
+                <h2 class="section-title text-white">Frequently Asked Questions</h2>
+                <p class="section-subtitle">Find answers to quick questions regarding models, API keys, and campaign options.</p>
+            </div>
+            
+            <div class="accordion accordion-landing reveal" id="faqLandingAccordion">
+                
+                <!-- FAQ 1 -->
+                <div class="accordion-item-landing">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button-landing collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#landingOne" aria-expanded="false" aria-controls="landingOne">
+                            <span>What models does Oplyra integrate?</span>
+                            <i class="bi bi-chevron-down text-secondary"></i>
+                        </button>
+                    </h2>
+                    <div id="landingOne" class="accordion-collapse collapse" data-bs-parent="#faqLandingAccordion">
+                        <div class="accordion-body-landing">
+                            Oplyra integrates high-performance LLM models through a centralized AI Gateway layer, generating context-rich blogs, reviews, and campaign caption templates.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FAQ 2 -->
+                <div class="accordion-item-landing">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button-landing collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#landingTwo" aria-expanded="false" aria-controls="landingTwo">
+                            <span>Can I use my own AI API Integration keys?</span>
+                            <i class="bi bi-chevron-down text-secondary"></i>
+                        </button>
+                    </h2>
+                    <div id="landingTwo" class="accordion-collapse collapse" data-bs-parent="#faqLandingAccordion">
+                        <div class="accordion-body-landing">
+                            Yes! Subscribing to the Pro plan allows you to save your custom AI provider API keys locally in browser sandbox storage, bypassing standard usage limit metrics.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FAQ 3 -->
+                <div class="accordion-item-landing">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button-landing collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#landingThree" aria-expanded="false" aria-controls="landingThree">
+                            <span>How does SEO grading work in real-time?</span>
+                            <i class="bi bi-chevron-down text-secondary"></i>
+                        </button>
+                    </h2>
+                    <div id="landingThree" class="accordion-collapse collapse" data-bs-parent="#faqLandingAccordion">
+                        <div class="accordion-body-landing">
+                            The studio evaluates heading configurations, calculates Flesch Reading Ease readability grades, and audits target keyword density metrics dynamically as content is generated or updated.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FAQ 4 -->
+                <div class="accordion-item-landing">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button-landing collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#landingFour" aria-expanded="false" aria-controls="landingFour">
+                            <span>Are my API tokens and scheduled credentials secure?</span>
+                            <i class="bi bi-chevron-down text-secondary"></i>
+                        </button>
+                    </h2>
+                    <div id="landingFour" class="accordion-collapse collapse" data-bs-parent="#faqLandingAccordion">
+                        <div class="accordion-body-landing">
+                            Yes. All credentials, integration passwords, and network tokens stored in our database are symmetrically encrypted with secure key mechanisms, preventing disclosure.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         FINAL CTA BANNER
+         ========================================== -->
+    <section class="section-padding text-center" style="background: linear-gradient(180deg, rgba(3, 7, 18, 0) 0%, rgba(99, 102, 241, 0.05) 100%);">
+        <div class="container reveal">
+            <h2 class="fs-1 text-white font-weight-bold mb-3" style="letter-spacing: -0.02em;">Ready to Build Smarter Marketing?</h2>
+            <p class="text-secondary max-width-600 mx-auto mb-4 small" style="font-size: 0.95rem; line-height: 1.6;">Join agencies, consultants, and affiliate writers generating optimized performance copy in seconds.</p>
+            <a href="{{ url_for('auth.register') }}" class="btn-landing-primary py-3 px-5 fs-6">Get Started Free</a>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         FOOTER SECTION
+         ========================================== -->
+    <footer class="footer-landing">
+        <div class="container">
+            <div class="row g-4 mb-5 text-start">
+                <div class="col-lg-4">
+                    <a class="d-flex align-items-center mb-3 text-decoration-none" href="#">
+                        {{ oplyra_logo('footer-dark', '#') }}
+                    </a>
+                    <p class="text-secondary small pr-lg-4" style="line-height: 1.55;">Performance Marketing and optimized copy generation in one place. Scale your affiliate operations instantly.</p>
+                </div>
+                
+                <div class="col-sm-6 col-md-3 col-lg-2 offset-lg-1">
+                    <h6 class="footer-title">Product</h6>
+                    <a href="#features" class="footer-link">AI Studio</a>
+                    <a href="#workflow" class="footer-link">Campaigns</a>
+                    <a href="#preview" class="footer-link">SEO Audits</a>
+                    <a href="#pricing" class="footer-link">Pricing Plans</a>
+                </div>
+                
+                <div class="col-sm-6 col-md-3 col-lg-2">
+                    <h6 class="footer-title">Company</h6>
+                    <a href="#" class="footer-link">About Us</a>
+                    <a href="#" class="footer-link">Careers</a>
+                    <a href="#" class="footer-link">Press Kit</a>
+                    <a href="#" class="footer-link">Contact</a>
+                </div>
+                
+                <div class="col-sm-6 col-md-3 col-lg-3">
+                    <h6 class="footer-title">Resources & Legal</h6>
+                    <a href="#" class="footer-link">Blog & News</a>
+                    <a href="#" class="footer-link">Tutorials</a>
+                    <a href="#" class="footer-link">Privacy Policy</a>
+                    <a href="#" class="footer-link">Terms of Service</a>
+                </div>
+            </div>
+            
+            <div class="border-top border-secondary border-opacity-10 pt-4 d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3">
+                <span class="small text-secondary" style="font-size: 0.725rem;">&copy; 2026 Oplyra Platform. All Rights Reserved.</span>
+                <div class="d-flex gap-3 text-secondary" style="font-size: 1.15rem;">
+                    <a href="#" class="text-secondary hover-white"><i class="bi bi-twitter-x"></i></a>
+                    <a href="#" class="text-secondary hover-white"><i class="bi bi-github"></i></a>
+                    <a href="#" class="text-secondary hover-white"><i class="bi bi-linkedin"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    
+    <script>
+        // 1. Scroll Progress Bar & Navbar Sticky Background
+        const progressBar = document.getElementById('progress-bar');
+        const navbar = document.getElementById('landing-navbar');
+        
+        window.addEventListener('scroll', () => {
+            const scrollTotal = document.documentElement.scrollHeight - window.innerHeight;
+            const scrollPercent = (window.pageYOffset / scrollTotal) * 100;
+            progressBar.style.width = scrollPercent + '%';
+            
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+        
+        // 2. Animated Scroll Reveal Behavior
+        const reveals = document.querySelectorAll('.reveal');
+        function revealElements() {
+            for (let i = 0; i < reveals.length; i++) {
+                const windowHeight = window.innerHeight;
+                const elementTop = reveals[i].getBoundingClientRect().top;
+                const elementVisible = 100;
+                
+                if (elementTop < windowHeight - elementVisible) {
+                    reveals[i].classList.add('active');
+                }
+            }
+        }
+        window.addEventListener('scroll', revealElements);
+        revealElements(); // Initial call
+
+        // 3. Dynamic Product Preview Switching
+        const previewUrls = [
+            "app.oplyra.com/content-studio",
+            "app.oplyra.com/campaign-manager",
+            "app.oplyra.com/seo-audits",
+            "app.oplyra.com/analytics-dashboard"
+        ];
+        
+        const previewContents = [
+            // Content Studio
+            `<div class="row g-3">
+                <div class="col-md-4">
+                    <div class="glass-card p-3 h-100" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color);">
+                        <h6 class="text-white small mb-3">Generation Parameters</h6>
+                        <div class="mb-2.5">
+                            <label class="text-secondary small mb-1" style="font-size: 0.65rem;">Content Format</label>
+                            <div class="p-2 rounded-2 small text-white border" style="background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.05); font-size: 0.725rem;">Affiliate Product Review</div>
+                        </div>
+                        <div class="mb-2.5">
+                            <label class="text-secondary small mb-1" style="font-size: 0.65rem;">Target Keyword</label>
+                            <div class="p-2 rounded-2 small text-white border" style="background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.05); font-size: 0.725rem;">best portable mechanical keyboard</div>
+                        </div>
+                        <button class="btn btn-primary-custom w-100 py-1.5 small text-white mt-2" style="font-size: 0.7rem;"><i class="bi bi-lightning-charge me-1.5"></i>Generate Copy</button>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="p-3 rounded-3 border h-100" style="background: rgba(255,255,255,0.01); border-color: rgba(255,255,255,0.05);">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="text-white small" style="font-weight: 600; font-size: 0.725rem;">Draft Output</span>
+                            <span class="badge bg-success" style="font-size: 0.6rem;">A Grade Score</span>
+                        </div>
+                        <h6 class="text-white font-weight-bold mb-2" style="font-size: 0.85rem;">Top 5 Portable Mechanical Keyboards to Optimize Your Setup in 2026</h6>
+                        <p class="text-secondary small" style="font-size: 0.725rem; line-height: 1.5;">When looking for the best portable mechanical keyboard, portability and layout structure represent the two most critical metrics. Standard layouts are bulky, but compact form factors offer...</p>
+                    </div>
+                </div>
+            </div>`,
+            
+            // Campaign Manager
+            `<div class="row g-3">
+                <div class="col-md-5">
+                    <div class="p-3 rounded-3 border h-100" style="background: rgba(255,255,255,0.02); border-color: var(--border-color);">
+                        <h6 class="text-white small mb-3">Budget Allocations</h6>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between small text-secondary mb-1" style="font-size: 0.65rem;">
+                                <span>Affiliate Promotion</span>
+                                <span>$1,200.00 / $2,000.00</span>
+                            </div>
+                            <div class="progress" style="height: 4px; background: rgba(255,255,255,0.05);">
+                                <div class="progress-bar bg-success" style="width: 60%;"></div>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between small text-secondary mb-1" style="font-size: 0.65rem;">
+                                <span>Facebook Lead Ads</span>
+                                <span>$800.00 / $1,000.00</span>
+                            </div>
+                            <div class="progress" style="height: 4px; background: rgba(255,255,255,0.05);">
+                                <div class="progress-bar bg-info" style="width: 80%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <div class="p-3 rounded-3 border h-100" style="background: rgba(255,255,255,0.01); border-color: var(--border-color);">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="text-white small mb-0" style="font-weight: 600;">Marketing Tasks Queue</h6>
+                            <span class="badge bg-info" style="font-size: 0.6rem;">Automated Scheduling</span>
+                        </div>
+                        <div class="d-flex flex-column gap-2">
+                            <div class="p-2 rounded-2 d-flex justify-content-between align-items-center" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); font-size: 0.7rem;">
+                                <span><i class="bi bi-clock me-1.5 text-warning"></i>Generate affiliate newsletter copy</span>
+                                <span class="text-secondary" style="font-size: 0.65rem;">In Progress</span>
+                            </div>
+                            <div class="p-2 rounded-2 d-flex justify-content-between align-items-center" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); font-size: 0.7rem;">
+                                <span><i class="bi bi-check2-circle me-1.5 text-success"></i>Sanitize uploaded promotion graphic</span>
+                                <span class="text-success" style="font-size: 0.65rem;">Ready</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`,
+            
+            // SEO Audits
+            `<div class="row g-3">
+                <div class="col-md-4">
+                    <div class="p-3 rounded-3 border text-center" style="background: rgba(255,255,255,0.02); border-color: var(--border-color);">
+                        <div class="text-secondary small mb-2" style="font-size: 0.65rem;">Flesch Reading Ease</div>
+                        <div class="display-6 text-success font-weight-bold my-1">68.2</div>
+                        <span class="text-success small" style="font-size: 0.65rem;"><i class="bi bi-check-circle-fill me-1"></i>Standard Readability</span>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="p-3 rounded-3 border" style="background: rgba(255,255,255,0.01); border-color: var(--border-color);">
+                        <h6 class="text-white small mb-3">SEO Density Checklist</h6>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-borderless mb-0 align-middle" style="font-size: 0.7rem;">
+                                <thead>
+                                    <tr class="border-bottom border-secondary border-opacity-10 text-secondary">
+                                        <td>Keyword Checked</td>
+                                        <td>Count</td>
+                                        <td>Density Status</td>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>portable keyboard</td>
+                                        <td>6 times</td>
+                                        <td><span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Good (1.2%)</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>mechanical switch</td>
+                                        <td>2 times</td>
+                                        <td><span class="text-warning"><i class="bi bi-exclamation-circle-fill me-1"></i>Low (0.4%)</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>`,
+            
+            // Analytics
+            `<div class="row g-3">
+                <div class="col-md-7">
+                    <div class="p-3 rounded-3 border" style="background: rgba(255,255,255,0.01); border-color: var(--border-color);">
+                        <h6 class="text-white small mb-3">Copy Counts & Activity</h6>
+                        <!-- Fake bar graph with CSS styling -->
+                        <div class="d-flex align-items-end justify-content-between pt-4" style="height: 120px;">
+                            <div class="d-flex flex-column align-items-center" style="width: 12%;">
+                                <div class="bg-indigo rounded-top" style="height: 60px; width: 100%; background: var(--primary-grad);"></div>
+                                <span class="text-secondary small mt-1.5" style="font-size: 0.55rem;">Mon</span>
+                            </div>
+                            <div class="d-flex flex-column align-items-center" style="width: 12%;">
+                                <div class="bg-indigo rounded-top" style="height: 85px; width: 100%; background: var(--primary-grad);"></div>
+                                <span class="text-secondary small mt-1.5" style="font-size: 0.55rem;">Tue</span>
+                            </div>
+                            <div class="d-flex flex-column align-items-center" style="width: 12%;">
+                                <div class="bg-indigo rounded-top" style="height: 40px; width: 100%; background: var(--primary-grad);"></div>
+                                <span class="text-secondary small mt-1.5" style="font-size: 0.55rem;">Wed</span>
+                            </div>
+                            <div class="d-flex flex-column align-items-center" style="width: 12%;">
+                                <div class="bg-indigo rounded-top" style="height: 110px; width: 100%; background: var(--primary-grad);"></div>
+                                <span class="text-secondary small mt-1.5" style="font-size: 0.55rem;">Thu</span>
+                            </div>
+                            <div class="d-flex flex-column align-items-center" style="width: 12%;">
+                                <div class="bg-indigo rounded-top" style="height: 90px; width: 100%; background: var(--primary-grad);"></div>
+                                <span class="text-secondary small mt-1.5" style="font-size: 0.55rem;">Fri</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="p-3 rounded-3 border h-100" style="background: rgba(255,255,255,0.02); border-color: var(--border-color);">
+                        <h6 class="text-white small mb-3">Copy Format Allocations</h6>
+                        <ul class="list-unstyled mb-0 d-flex flex-column gap-2" style="font-size: 0.7rem; color: var(--text-secondary);">
+                            <li class="d-flex justify-content-between"><span>SEO Articles</span><span class="text-white">45%</span></li>
+                            <li class="d-flex justify-content-between"><span>Email Copies</span><span class="text-white">25%</span></li>
+                            <li class="d-flex justify-content-between"><span>Social Captions</span><span class="text-white">20%</span></li>
+                            <li class="d-flex justify-content-between"><span>Product Reviews</span><span class="text-white">10%</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>`
+        ];
+
+        function switchPreview(index) {
+            // Update button active states
+            const buttons = document.querySelectorAll('.preview-tab-btn');
+            buttons.forEach((btn, i) => {
+                if (i === index) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            
+            // Update mockup URL text
+            const urlText = document.getElementById('preview-url');
+            urlText.textContent = previewUrls[index];
+            
+            // Fade and update content
+            const display = document.getElementById('preview-display');
+            display.style.opacity = '0';
+            display.style.transition = 'opacity 0.25s ease-out';
+            
+            setTimeout(() => {
+                display.innerHTML = previewContents[index];
+                display.style.opacity = '1';
+            }, 250);
+        }
+    </script>
+</body>
+</html>

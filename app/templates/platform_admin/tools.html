@@ -1,0 +1,58 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Tools · Platform Admin{% endblock %}
+{% block page_title %}Tools{% endblock %}
+{% block content %}
+<div class="pa-kpi-grid mb-3">
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Installed</div><div class="pa-metric-value pa-kpi-value">{{ data.installed }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Enabled</div><div class="pa-metric-value pa-kpi-value">{{ data.enabled }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Executions (7d)</div><div class="pa-metric-value pa-kpi-value">{{ data.executions_7d }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Failures (7d)</div><div class="pa-metric-value pa-kpi-value">{{ data.failures_7d }}</div></div>
+</div>
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="glass-card pa-panel">
+            <h3>Installed tools</h3>
+            <div class="table-responsive">
+                <table class="table table-custom pa-table mb-0">
+                    <thead><tr><th>Name</th><th>Key</th><th>Type</th><th>OAuth</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% for t in data.tools %}
+                        <tr>
+                            <td>{{ t.name }}</td>
+                            <td><code>{{ t.key }}</code></td>
+                            <td>{{ t.provider_type }}</td>
+                            <td>{% if t.requires_oauth %}yes{% else %}no{% endif %}</td>
+                            <td>{% if t.is_enabled %}enabled{% else %}off{% endif %}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-secondary">No tools registered.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="glass-card pa-panel mb-3">
+            <h3>Marketplace</h3>
+            <ul class="pa-list">
+                {% for m in data.marketplace %}
+                <li><span>{{ m.name }}</span><strong>{{ m.key if m.key is defined else m.id }}</strong></li>
+                {% else %}
+                <li><span class="text-secondary">No marketplace items</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="glass-card pa-panel">
+            <h3>OAuth / connections</h3>
+            <ul class="pa-list">
+                {% for c in data.oauth %}
+                <li><span>{{ c.display_name or c.id }}</span><strong>{{ c.status if c.status is defined else 'connected' }}</strong></li>
+                {% else %}
+                <li><span class="text-secondary">No OAuth connections</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

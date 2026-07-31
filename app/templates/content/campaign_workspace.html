@@ -1,0 +1,1751 @@
+{% extends "base.html" %}
+
+{% block title %}{{ campaign.name }} - Campaign Workspace - Oplyra{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ============================================================
+   Campaign Workspace — Premium UI (scoped to .campaign-workspace)
+   ============================================================ */
+.campaign-workspace { --cw-gap: 1rem; }
+
+/* KPI bento strip */
+.cw-kpi-bento {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: var(--cw-gap);
+    margin-bottom: 1.5rem;
+}
+.cw-kpi-card {
+    grid-column: span 3;
+    position: relative;
+    padding: 0.85rem 1rem;
+    background: hsl(var(--card-bg));
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: var(--transition-fast);
+}
+.cw-kpi-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.cw-kpi-card.accent-indigo::before { background: linear-gradient(90deg, hsl(var(--primary)), #4f46e5); }
+.cw-kpi-card.accent-teal::before { background: linear-gradient(90deg, hsl(var(--secondary)), #14b8a6); }
+.cw-kpi-card.accent-warning::before { background: linear-gradient(90deg, hsl(var(--warning)), #d97706); }
+.cw-kpi-card.accent-success::before { background: linear-gradient(90deg, #22c55e, #16a34a); }
+.cw-kpi-card:hover { border-color: rgba(99,102,241,0.2); transform: translateY(-1px); }
+.cw-kpi-label {
+    font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: hsl(var(--text-muted)); margin-bottom: 0.25rem;
+}
+.cw-kpi-value { font-size: 1.15rem; font-weight: 700; color: hsl(var(--text-primary)); margin: 0; line-height: 1.2; }
+.cw-kpi-value.teal { color: hsl(var(--secondary)); }
+
+/* Hero */
+.cw-hero {
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, hsl(var(--primary)/0.07) 0%, hsl(var(--secondary)/0.03) 55%, transparent 100%);
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+}
+.cw-hero-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.cw-hero-meta { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.5rem; }
+.cw-hero-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.cw-hero-progress-ring {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem;
+}
+.cw-hero-progress-value { font-size: 1.75rem; font-weight: 700; color: hsl(var(--secondary)); line-height: 1; }
+.cw-hero-progress-bar {
+    width: 120px; height: 4px; border-radius: 999px;
+    background: rgba(255,255,255,0.06); overflow: hidden;
+}
+.cw-hero-progress-fill {
+    height: 100%; border-radius: 999px;
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary)));
+    transition: width 0.4s ease;
+}
+.cw-stage-select {
+    font-size: 0.75rem; padding: 0.35rem 0.65rem; min-width: 150px;
+}
+
+/* Pipeline */
+.cw-pipeline { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid rgba(255,255,255,0.05); }
+.cw-pipeline-scroll { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.5rem; }
+.cw-pipeline-node {
+    padding: 0.65rem 0.75rem; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.02);
+    transition: var(--transition-fast);
+    min-width: 0;
+}
+.cw-pipeline-node.is-active {
+    border-color: hsl(var(--primary)/0.4);
+    background: hsl(var(--primary)/0.08);
+    box-shadow: 0 0 12px hsl(var(--primary)/0.12);
+}
+.cw-pipeline-node.is-done { border-color: rgba(34,197,94,0.25); background: rgba(34,197,94,0.04); }
+.cw-pipeline-node-header { display: flex; justify-content: space-between; align-items: center; gap: 0.25rem; margin-bottom: 0.4rem; }
+.cw-pipeline-node-title { font-size: 0.65rem; font-weight: 700; color: hsl(var(--text-primary)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-pipeline-badge {
+    font-size: 0.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    padding: 0.1rem 0.35rem; border-radius: 3px; flex-shrink: 0;
+}
+.cw-pipeline-badge.badge-active { color: hsl(var(--primary)); background: hsl(var(--primary)/0.15); }
+.cw-pipeline-badge.badge-done { color: #22c55e; background: rgba(34,197,94,0.12); }
+.cw-pipeline-badge.badge-pending { color: hsl(var(--text-muted)); background: rgba(255,255,255,0.04); }
+.cw-pipeline-preview { font-size: 0.6rem; color: hsl(var(--text-secondary)); line-height: 1.35; }
+.cw-pipeline-preview .preview-item { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-pipeline-preview .preview-item.is-done { text-decoration: line-through; color: hsl(var(--text-muted)); }
+.cw-pipeline-progress { display: flex; align-items: center; gap: 0.35rem; margin-top: 0.25rem; }
+.cw-pipeline-progress-track { flex: 1; height: 3px; border-radius: 999px; background: rgba(255,255,255,0.05); overflow: hidden; }
+.cw-pipeline-progress-fill { height: 100%; border-radius: 999px; background: hsl(var(--primary)); transition: width 0.3s ease; }
+.cw-pipeline-progress-fill.is-complete { background: #22c55e; }
+.cw-pipeline-pct { font-size: 0.55rem; font-weight: 600; color: hsl(var(--text-muted)); min-width: 1.75rem; text-align: right; }
+
+/* Tab navigation */
+.cw-tabs-wrap {
+    padding: 0.35rem; margin-bottom: 1rem;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 10px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.cw-tabs-wrap::-webkit-scrollbar { height: 4px; }
+.cw-tabs-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+.cw-tabs { display: flex; gap: 0.25rem; min-width: max-content; border: none; }
+.cw-tab-btn {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.45rem 0.75rem; font-size: 0.72rem; font-weight: 600;
+    color: hsl(var(--text-secondary)); background: transparent; border: none;
+    border-radius: 7px; cursor: pointer; white-space: nowrap; transition: var(--transition-fast);
+}
+.cw-tab-btn:hover { color: hsl(var(--text-primary)); background: rgba(255,255,255,0.04); }
+.cw-tab-btn.active { color: #fff; background: linear-gradient(135deg, hsl(var(--primary)), #4f46e5); box-shadow: 0 2px 8px rgba(99,102,241,0.3); }
+.cw-tab-btn:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 2px; }
+
+/* Section headers */
+.cw-section-title {
+    font-size: 0.8rem; font-weight: 700; color: hsl(var(--text-primary));
+    margin: 0 0 0.85rem; display: flex; align-items: center; gap: 0.4rem;
+}
+.cw-section-title .bi { color: hsl(var(--primary)); }
+
+/* Intel bento cards */
+.cw-intel-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--cw-gap); margin-bottom: var(--cw-gap); }
+.cw-intel-card {
+    padding: 1rem; border-radius: 10px;
+    background: hsl(var(--card-bg)); border: 1px solid rgba(255,255,255,0.05);
+    border-left: 3px solid hsl(var(--primary)); transition: var(--transition-fast);
+}
+.cw-intel-card.accent-teal { border-left-color: hsl(var(--secondary)); }
+.cw-intel-card:hover { border-color: rgba(99,102,241,0.2); transform: translateY(-1px); }
+.cw-intel-card-label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: hsl(var(--text-muted)); margin-bottom: 0.35rem; }
+.cw-intel-card-title { font-size: 0.85rem; font-weight: 700; color: hsl(var(--text-primary)); margin-bottom: 0.35rem; }
+.cw-intel-card-desc { font-size: 0.75rem; color: hsl(var(--text-secondary)); line-height: 1.45; margin-bottom: 0.75rem; }
+.cw-intel-meta { display: flex; justify-content: space-between; font-size: 0.7rem; color: hsl(var(--text-muted)); padding-bottom: 0.65rem; margin-bottom: 0.65rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.cw-health-badge {
+    font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    padding: 0.15rem 0.5rem; border-radius: 4px; border: 1px solid transparent;
+    display: inline-flex; align-items: center; gap: 0.25rem; white-space: nowrap;
+}
+.cw-health-badge.health-critical { color: hsl(var(--danger)); background: hsl(var(--danger)/0.12); border-color: hsl(var(--danger)/0.28); }
+.cw-health-badge.health-warning { color: hsl(var(--warning)); background: hsl(var(--warning)/0.12); border-color: hsl(var(--warning)/0.28); }
+.cw-health-badge.health-good { color: #2dd4bf; background: rgba(45, 212, 191, 0.12); border-color: rgba(45, 212, 191, 0.28); }
+.cw-health-badge.health-excellent { color: #22c55e; background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.28); }
+
+/* Campaign Health — premium intel card */
+.cw-health-card {
+    display: flex; flex-direction: column; gap: 0.85rem;
+    border-left-width: 3px; overflow: hidden;
+}
+.cw-health-card.health-state-excellent { border-left-color: #22c55e; }
+.cw-health-card.health-state-good { border-left-color: #2dd4bf; }
+.cw-health-card.health-state-warning { border-left-color: hsl(var(--warning)); }
+.cw-health-card.health-state-critical { border-left-color: hsl(var(--danger)); }
+
+.cw-health-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+}
+.cw-health-hero {
+    display: flex; align-items: center; gap: 0.85rem;
+    padding: 0.85rem; border-radius: 10px;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.cw-health-icon-ring {
+    width: 2.75rem; height: 2.75rem; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    font-size: 1.15rem; border: 2px solid transparent;
+}
+.health-state-excellent .cw-health-icon-ring { color: #22c55e; background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.25); }
+.health-state-good .cw-health-icon-ring { color: #2dd4bf; background: rgba(45, 212, 191, 0.1); border-color: rgba(45, 212, 191, 0.25); }
+.health-state-warning .cw-health-icon-ring { color: hsl(var(--warning)); background: hsl(var(--warning)/0.1); border-color: hsl(var(--warning)/0.25); }
+.health-state-critical .cw-health-icon-ring { color: hsl(var(--danger)); background: hsl(var(--danger)/0.1); border-color: hsl(var(--danger)/0.25); }
+
+.cw-health-status-title {
+    font-size: 1rem; font-weight: 700; color: hsl(var(--text-primary));
+    margin: 0 0 0.2rem; line-height: 1.2;
+}
+.cw-health-status-summary {
+    font-size: 0.72rem; color: hsl(var(--text-secondary)); margin: 0; line-height: 1.45;
+}
+.cw-health-meter { display: flex; flex-direction: column; gap: 0.35rem; }
+.cw-health-meter-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: hsl(var(--text-muted));
+}
+.cw-health-meter-pct { font-size: 0.8rem; font-weight: 700; color: hsl(var(--text-primary)); }
+.cw-health-meter-track {
+    height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); overflow: hidden;
+}
+.cw-health-meter-fill {
+    height: 100%; border-radius: 999px; transition: width 0.45s ease;
+    background: linear-gradient(90deg, hsl(var(--primary)), #4f46e5);
+}
+.health-state-excellent .cw-health-meter-fill { background: linear-gradient(90deg, #22c55e, #16a34a); }
+.health-state-good .cw-health-meter-fill { background: linear-gradient(90deg, #2dd4bf, #14b8a6); }
+.health-state-warning .cw-health-meter-fill { background: linear-gradient(90deg, hsl(var(--warning)), #d97706); }
+.health-state-critical .cw-health-meter-fill { background: linear-gradient(90deg, hsl(var(--danger)), #dc2626); }
+.cw-health-meter-caption { font-size: 0.68rem; color: hsl(var(--text-muted)); }
+
+.cw-health-metrics {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+}
+.cw-health-metric {
+    padding: 0.55rem 0.65rem; border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.04);
+}
+.cw-health-metric-label {
+    display: block; font-size: 0.58rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: hsl(var(--text-muted)); margin-bottom: 0.25rem;
+}
+.cw-health-metric-value {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    font-size: 0.78rem; font-weight: 700; color: hsl(var(--text-primary));
+}
+.cw-health-metric-value.trend-improving { color: #22c55e; }
+.cw-health-metric-value.trend-declining { color: hsl(var(--danger)); }
+.cw-health-metric-value.trend-stable { color: hsl(var(--warning)); }
+
+.cw-health-focus-title {
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: hsl(var(--text-muted)); margin-bottom: 0.4rem;
+}
+.cw-health-focus-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.cw-health-focus-item {
+    display: flex; align-items: flex-start; gap: 0.45rem;
+    font-size: 0.72rem; color: hsl(var(--text-secondary)); line-height: 1.4;
+    padding: 0.4rem 0.55rem; border-radius: 6px;
+    background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.04);
+}
+.cw-health-focus-item .bi { flex-shrink: 0; margin-top: 0.1rem; }
+.cw-health-focus-item.is-clear { color: #22c55e; background: rgba(34, 197, 94, 0.06); border-color: rgba(34, 197, 94, 0.15); }
+
+.cw-health-insight {
+    display: flex; align-items: flex-start; gap: 0.5rem;
+    padding: 0.6rem 0.7rem; border-radius: 8px;
+    font-size: 0.7rem; line-height: 1.45; color: hsl(var(--text-secondary));
+    background: hsl(var(--primary)/0.06); border: 1px solid hsl(var(--primary)/0.15);
+}
+.cw-health-insight .bi { color: hsl(var(--primary)); flex-shrink: 0; margin-top: 0.1rem; }
+
+/* KPI strip — health cell */
+.cw-kpi-health .cw-kpi-health-row {
+    display: flex; align-items: center; gap: 0.4rem; margin-top: 0.15rem;
+}
+.cw-kpi-health .cw-kpi-health-row .bi { font-size: 1rem; flex-shrink: 0; }
+.cw-kpi-health.health-kpi-excellent .bi { color: #22c55e; }
+.cw-kpi-health.health-kpi-good .bi { color: #2dd4bf; }
+.cw-kpi-health.health-kpi-warning .bi { color: hsl(var(--warning)); }
+.cw-kpi-health.health-kpi-critical .bi { color: hsl(var(--danger)); }
+.cw-kpi-health.health-kpi-excellent .cw-kpi-value { color: #22c55e; }
+.cw-kpi-health.health-kpi-good .cw-kpi-value { color: #2dd4bf; }
+.cw-kpi-health.health-kpi-warning .cw-kpi-value { color: hsl(var(--warning)); }
+.cw-kpi-health.health-kpi-critical .cw-kpi-value { color: hsl(var(--danger)); }
+
+/* Insight / risk cards */
+.cw-insight-chip {
+    display: flex; align-items: flex-start; gap: 0.5rem;
+    padding: 0.5rem 0.65rem; border-radius: 8px; font-size: 0.72rem;
+    color: hsl(var(--text-secondary)); background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.cw-insight-tag { font-size: 0.55rem; font-weight: 700; padding: 0.1rem 0.35rem; border-radius: 3px; color: hsl(var(--primary)); background: hsl(var(--primary)/0.12); flex-shrink: 0; }
+.cw-alert-card {
+    padding: 0.75rem; border-radius: 8px; margin-bottom: 0.5rem;
+    border: 1px solid transparent;
+}
+.cw-alert-card.alert-risk { background: hsl(var(--danger)/0.05); border-color: hsl(var(--danger)/0.15); }
+.cw-alert-card.alert-opp { background: hsl(var(--secondary)/0.05); border-color: hsl(var(--secondary)/0.15); }
+.cw-alert-title { font-size: 0.8rem; font-weight: 700; color: hsl(var(--text-primary)); margin-bottom: 0.25rem; }
+.cw-alert-text { font-size: 0.7rem; color: hsl(var(--text-secondary)); margin: 0; line-height: 1.4; }
+.cw-alert-action { font-size: 0.7rem; color: hsl(var(--primary)); font-weight: 600; margin-top: 0.35rem; }
+
+/* Lifecycle checklist */
+.cw-lifecycle .accordion-item {
+    background: transparent; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px !important;
+    margin-bottom: 0.5rem; overflow: hidden;
+}
+.cw-lifecycle .accordion-button {
+    font-size: 0.78rem; font-weight: 600; color: hsl(var(--text-primary));
+    background: rgba(255,255,255,0.02); box-shadow: none; padding: 0.75rem 1rem;
+}
+.cw-lifecycle .accordion-button:not(.collapsed) { background: hsl(var(--primary)/0.06); color: hsl(var(--text-primary)); }
+.cw-lifecycle .accordion-button::after { filter: invert(1) opacity(0.5); }
+.cw-lifecycle .accordion-body { padding: 0.5rem; background: rgba(0,0,0,0.15); }
+.cw-lifecycle-badge {
+    font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.45rem; border-radius: 4px;
+    color: hsl(var(--primary)); background: hsl(var(--primary)/0.12); margin-left: 0.5rem;
+}
+.cw-checklist-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+    padding: 0.5rem 0.65rem; border-radius: 6px; margin-bottom: 0.25rem;
+    background: rgba(255,255,255,0.02); border: 1px solid transparent;
+    transition: var(--transition-fast);
+}
+.cw-checklist-row:hover { border-color: rgba(255,255,255,0.06); background: rgba(255,255,255,0.03); }
+.cw-checklist-row .form-check-input { cursor: pointer; margin-top: 0; }
+.cw-checklist-label { font-size: 0.75rem; color: hsl(var(--text-secondary)); cursor: pointer; margin-left: 0.35rem; }
+.cw-checklist-label.is-complete { text-decoration: line-through; color: hsl(var(--text-muted)); }
+.cw-checklist-hint { font-size: 0.6rem; color: hsl(var(--text-muted)); flex-shrink: 0; }
+
+/* Task items */
+.cw-task-group-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin: 0.75rem 0 0.4rem; }
+.cw-task-group-label.label-urgent { color: hsl(var(--danger)); }
+.cw-task-group-label.label-today { color: hsl(var(--primary)); }
+.cw-task-group-label.label-upcoming { color: hsl(var(--secondary)); }
+.cw-task-group-label.label-waiting { color: hsl(var(--warning)); }
+.cw-task-group-label.label-done { color: hsl(var(--text-muted)); }
+.cw-task-item {
+    display: flex; align-items: flex-start; gap: 0.65rem;
+    padding: 0.75rem; border-radius: 8px; margin-bottom: 0.5rem;
+    background: hsl(var(--card-bg)); border: 1px solid rgba(255,255,255,0.05);
+    border-left: 3px solid rgba(255,255,255,0.12); transition: var(--transition-fast);
+}
+.cw-task-item:hover { border-color: rgba(99,102,241,0.2); transform: translateY(-1px); }
+.cw-task-item.priority-urgent { border-left-color: hsl(var(--danger)); }
+.cw-task-item.priority-today { border-left-color: hsl(var(--primary)); }
+.cw-task-item.priority-upcoming { border-left-color: hsl(var(--secondary)); }
+.cw-task-item.priority-waiting { border-left-color: hsl(var(--warning)); }
+.cw-task-item.is-completed { opacity: 0.55; }
+.cw-task-item.is-completed .cw-task-title { text-decoration: line-through; }
+.cw-task-title { font-size: 0.8rem; font-weight: 600; color: hsl(var(--text-primary)); display: block; }
+.cw-task-meta { font-size: 0.65rem; color: hsl(var(--text-muted)); margin-top: 0.15rem; }
+
+/* Priority badges */
+.cw-priority-badge { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid transparent; }
+.cw-priority-badge.priority-high { color: hsl(var(--danger)); background: hsl(var(--danger)/0.1); border-color: hsl(var(--danger)/0.2); }
+.cw-priority-badge.priority-medium { color: hsl(var(--warning)); background: hsl(var(--warning)/0.1); border-color: hsl(var(--warning)/0.2); }
+.cw-priority-badge.priority-low { color: hsl(var(--secondary)); background: hsl(var(--secondary)/0.1); border-color: hsl(var(--secondary)/0.2); }
+.cw-priority-badge.priority-done { color: hsl(var(--text-muted)); background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); }
+
+/* AI sidebar */
+.cw-ai-panel { position: sticky; top: calc(var(--header-height) + 1rem); }
+.cw-rec-card {
+    padding: 0.85rem; border-radius: 10px; margin-bottom: 0.75rem;
+    background: hsl(var(--card-bg)); border: 1px solid rgba(255,255,255,0.05);
+    border-left: 3px solid hsl(var(--secondary)); transition: var(--transition-fast);
+}
+.cw-rec-card.priority-high { border-left-color: hsl(var(--danger)); }
+.cw-rec-card.priority-medium { border-left-color: hsl(var(--warning)); }
+.cw-rec-card:hover { border-color: rgba(99,102,241,0.2); transform: translateY(-1px); }
+.cw-rec-title { font-size: 0.8rem; font-weight: 700; color: hsl(var(--text-primary)); margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.cw-rec-field-label { font-size: 0.55rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: hsl(var(--text-muted)); display: block; margin-bottom: 0.15rem; }
+.cw-rec-field-text { font-size: 0.72rem; color: hsl(var(--text-secondary)); margin-bottom: 0.5rem; line-height: 1.4; }
+.cw-rec-action { font-size: 0.72rem; color: hsl(var(--primary)); font-weight: 600; }
+.cw-rec-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.04); font-size: 0.68rem; }
+
+/* Files, notes, reports */
+.cw-file-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;
+    padding: 0.65rem 0.75rem; border-radius: 8px; margin-bottom: 0.5rem;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);
+    transition: var(--transition-fast);
+}
+.cw-file-row:hover { border-color: rgba(99,102,241,0.2); }
+.cw-file-name { font-size: 0.78rem; font-weight: 600; color: hsl(var(--text-primary)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+.cw-file-meta { font-size: var(--text-caption); color: hsl(var(--text-muted)); font-family: var(--font-mono); }
+.cw-note-item {
+    padding: 0.65rem 0.75rem; border-radius: 8px; margin-bottom: 0.5rem; cursor: pointer;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);
+    transition: var(--transition-fast);
+}
+.cw-note-item:hover, .cw-note-item.is-active { border-color: hsl(var(--primary)/0.35); background: hsl(var(--primary)/0.06); }
+.cw-note-item-title { font-size: 0.78rem; font-weight: 700; color: hsl(var(--text-primary)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-note-item-preview { font-size: 0.65rem; color: hsl(var(--text-muted)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-note-editor { min-height: 380px; display: flex; flex-direction: column; }
+.cw-note-title-input {
+    font-size: 0.95rem; font-weight: 700; color: hsl(var(--text-primary));
+    background: transparent; border: none; outline: none; width: 100%; margin-bottom: 0.75rem;
+}
+.cw-note-title-input:focus { box-shadow: 0 2px 0 hsl(var(--primary)/0.5); }
+.cw-note-body-input {
+    flex: 1; background: transparent; border: none; color: hsl(var(--text-secondary));
+    font-size: 0.8rem; line-height: 1.55; resize: none; outline: none; width: 100%;
+}
+.cw-autosave-badge {
+    font-size: 0.6rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px;
+    color: hsl(var(--primary)); background: hsl(var(--primary)/0.12);
+}
+.cw-autosave-badge.is-saving { color: hsl(var(--warning)); background: hsl(var(--warning)/0.12); }
+.cw-autosave-badge.is-draft { color: hsl(var(--text-muted)); background: rgba(255,255,255,0.06); }
+.cw-autosave-badge.is-error { color: hsl(var(--danger)); background: hsl(var(--danger)/0.12); }
+.cw-report-card {
+    display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+    padding: 0.85rem; border-radius: 10px;
+    background: hsl(var(--card-bg)); border: 1px solid rgba(255,255,255,0.05);
+    transition: var(--transition-fast);
+}
+.cw-report-card:hover { border-color: rgba(99,102,241,0.2); }
+.cw-draft-banner {
+    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem;
+    padding: 0.85rem 1rem; border-radius: 10px; margin-bottom: 1rem;
+    background: hsl(var(--primary)/0.06); border: 1px solid hsl(var(--primary)/0.2); border-left: 3px solid hsl(var(--primary));
+}
+.cw-automation-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+    padding: 0.85rem; border-radius: 10px; margin-bottom: 0.5rem;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);
+    transition: var(--transition-fast);
+}
+.cw-automation-row:hover { border-color: rgba(99,102,241,0.15); }
+.cw-automation-icon {
+    width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; background: hsl(var(--primary)/0.1); color: hsl(var(--primary)); flex-shrink: 0;
+}
+.cw-activity-row {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem;
+    padding-bottom: 0.65rem; margin-bottom: 0.65rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.75rem;
+}
+.cw-activity-badge {
+    font-size: 0.55rem; font-weight: 700; text-transform: uppercase; padding: 0.1rem 0.35rem;
+    border-radius: 3px; margin-right: 0.35rem;
+}
+.cw-activity-badge.type-task { color: #22c55e; background: rgba(34,197,94,0.1); }
+.cw-activity-badge.type-report { color: hsl(var(--primary)); background: hsl(var(--primary)/0.1); }
+.cw-activity-badge.type-note { color: hsl(var(--secondary)); background: hsl(var(--secondary)/0.1); }
+.cw-activity-badge.type-default { color: hsl(var(--text-muted)); background: rgba(255,255,255,0.06); }
+.cw-activity-time { font-size: var(--text-caption); color: hsl(var(--text-muted)); font-family: var(--font-mono); white-space: nowrap; }
+
+/* Responsive */
+@media (max-width: 991.98px) {
+    .cw-kpi-card { grid-column: span 6; }
+    .cw-intel-grid { grid-template-columns: 1fr; }
+    .cw-pipeline-scroll { grid-template-columns: repeat(3, 1fr); }
+    .cw-ai-panel { position: static; }
+}
+@media (max-width: 767.98px) {
+    .cw-kpi-card { grid-column: span 12; }
+    .cw-pipeline-scroll { grid-template-columns: repeat(2, 1fr); }
+    .cw-hero-progress-ring { align-items: flex-start; width: 100%; }
+    .cw-hero-actions { width: 100%; }
+}
+@media (max-width: 575.98px) {
+    .cw-pipeline-scroll { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="campaign-workspace">
+
+    <!-- Breadcrumbs -->
+    <nav class="workspace-breadcrumb mb-3" aria-label="Breadcrumb">
+        <ol class="workspace-breadcrumb-list">
+            <li class="workspace-breadcrumb-item">
+                <a href="{{ url_for('content.campaigns_view') }}">Campaigns</a>
+            </li>
+            <li class="workspace-breadcrumb-separator" aria-hidden="true"><i class="bi bi-chevron-right"></i></li>
+            <li class="workspace-breadcrumb-item workspace-breadcrumb-current" aria-current="page">{{ campaign.name }}</li>
+        </ol>
+    </nav>
+
+    <!-- KPI strip -->
+    <div class="cw-kpi-bento" aria-label="Campaign key metrics">
+        <div class="cw-kpi-card accent-teal">
+            <div class="cw-kpi-label">Budget</div>
+            <p class="cw-kpi-value teal">{{ campaign.budget | money(campaign.currency) }}</p>
+        </div>
+        <div class="cw-kpi-card accent-indigo">
+            <div class="cw-kpi-label">Status</div>
+            <p class="cw-kpi-value" style="text-transform: capitalize;">{{ campaign.status }}</p>
+        </div>
+        <div class="cw-kpi-card accent-success">
+            <div class="cw-kpi-label">Current Stage</div>
+            <p class="cw-kpi-value" style="font-size: 0.95rem;">{{ campaign.current_stage }}</p>
+        </div>
+        <div class="cw-kpi-card accent-warning cw-kpi-health
+            {% if health.overall_health == 'Critical' %}health-kpi-critical
+            {% elif health.overall_health == 'Needs Attention' %}health-kpi-warning
+            {% elif health.overall_health == 'Excellent' %}health-kpi-excellent
+            {% else %}health-kpi-good{% endif %}">
+            <div class="cw-kpi-label">Health</div>
+            <div class="cw-kpi-health-row">
+                <i class="bi {% if health.overall_health == 'Critical' %}bi-shield-exclamation
+                    {% elif health.overall_health == 'Needs Attention' %}bi-exclamation-triangle
+                    {% elif health.overall_health == 'Excellent' %}bi-shield-check
+                    {% else %}bi-heart-pulse{% endif %}" aria-hidden="true"></i>
+                <p class="cw-kpi-value" style="font-size: 0.88rem; margin: 0;">
+                    {% if health.overall_health == 'Needs Attention' %}Warning{% else %}{{ health.overall_health }}{% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero + Pipeline -->
+    <header class="cw-hero glass-card">
+        <div class="cw-hero-top">
+            <div style="flex: 1; min-width: 0;">
+                <div class="cw-hero-meta">
+                    <span class="campaign-type-badge">{{ campaign.type | replace('_', ' ') }}</span>
+                    <span class="campaign-client-chip"><i class="bi bi-briefcase me-1" aria-hidden="true"></i>{{ campaign.project.name if campaign.project else 'No Client' }}</span>
+                    {% if campaign.status == 'active' %}
+                    <span class="campaign-status-badge status-active">Active</span>
+                    {% elif campaign.status == 'completed' %}
+                    <span class="campaign-status-badge status-completed">Completed</span>
+                    {% elif campaign.status == 'paused' %}
+                    <span class="campaign-status-badge status-paused">Paused</span>
+                    {% else %}
+                    <span class="campaign-status-badge status-draft">Draft</span>
+                    {% endif %}
+                </div>
+                <h1 class="workspace-hero-title mb-1">{{ campaign.name }}</h1>
+                <p class="workspace-hero-description mb-0">{{ campaign.description or 'No overview description set.' }}</p>
+                <div class="cw-hero-actions mt-3">
+                    <button type="button" class="btn btn-primary-custom btn-sm" onclick="triggerCampaignTaskCreate()"><i class="bi bi-plus-circle me-1" aria-hidden="true"></i>New Task</button>
+                    <button type="button" class="btn btn-secondary-custom btn-sm" onclick="document.getElementById('files-tab').click()"><i class="bi bi-upload me-1" aria-hidden="true"></i>Upload File</button>
+                    <button type="button" class="btn btn-secondary-custom btn-sm" onclick="triggerWorkspaceReportCreate()"><i class="bi bi-file-earmark-bar-graph me-1" aria-hidden="true"></i>Compile Report</button>
+                </div>
+            </div>
+            <div class="cw-hero-progress-ring">
+                <span class="campaign-stat-label">Overall Progress</span>
+                <span class="cw-hero-progress-value" id="overall-progress-score">{{ campaign.get_overall_progress() }}%</span>
+                <div class="cw-hero-progress-bar" role="progressbar" aria-valuenow="{{ campaign.get_overall_progress() }}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="cw-hero-progress-fill" id="overall-progress-fill" style="width: {{ campaign.get_overall_progress() }}%;"></div>
+                </div>
+                <label for="campaign-stage-select" class="campaign-stat-label mt-2">Current stage</label>
+                <select id="campaign-stage-select" class="form-select form-control-custom cw-stage-select" onchange="changeCampaignStage(this.value)" aria-label="Change campaign stage">
+                    <option value="Onboarding" {% if campaign.current_stage == 'Onboarding' %}selected{% endif %}>1. Onboarding</option>
+                    <option value="Planning" {% if campaign.current_stage == 'Planning' %}selected{% endif %}>2. Planning</option>
+                    <option value="Execution" {% if campaign.current_stage == 'Execution' %}selected{% endif %}>3. Execution</option>
+                    <option value="Monitoring" {% if campaign.current_stage == 'Monitoring' %}selected{% endif %}>4. Monitoring</option>
+                    <option value="Reporting" {% if campaign.current_stage == 'Reporting' %}selected{% endif %}>5. Reporting</option>
+                    <option value="Completed" {% if campaign.current_stage == 'Completed' %}selected{% endif %}>6. Completed</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="cw-pipeline" aria-label="Campaign lifecycle pipeline">
+            <div class="cw-pipeline-scroll">
+                {% for stage_name in ['Onboarding', 'Planning', 'Execution', 'Monitoring', 'Reporting', 'Completed'] %}
+                {% set is_active = campaign.current_stage == stage_name %}
+                {% set progress = campaign.get_stage_progress(stage_name) %}
+                <div class="cw-pipeline-node{% if is_active %} is-active{% elif progress == 100 %} is-done{% endif %}">
+                    <div class="cw-pipeline-node-header">
+                        <span class="cw-pipeline-node-title">{{ stage_name }}</span>
+                        {% if progress == 100 %}
+                        <span class="cw-pipeline-badge badge-done">Done</span>
+                        {% elif is_active %}
+                        <span class="cw-pipeline-badge badge-active">Active</span>
+                        {% else %}
+                        <span class="cw-pipeline-badge badge-pending">Pending</span>
+                        {% endif %}
+                    </div>
+                    <div class="cw-pipeline-preview">
+                        {% if is_active %}
+                            {% set stage_items_map = {
+                                'Onboarding': onboarding_items, 'Planning': planning_items,
+                                'Execution': execution_items, 'Monitoring': monitoring_items,
+                                'Reporting': reporting_items, 'Completed': completed_items
+                            } %}
+                            {% set active_items = stage_items_map.get(stage_name, []) %}
+                            {% if active_items %}
+                                {% for item in active_items[:2] %}
+                                <div class="preview-item{% if item.is_completed %} is-done{% endif %}">
+                                    <i class="bi {% if item.is_completed %}bi-check-circle-fill text-teal{% else %}bi-circle{% endif %} me-1" aria-hidden="true"></i>{{ item.name }}
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="preview-item"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>Next milestone</div>
+                            {% endif %}
+                        {% else %}
+                            <div class="cw-pipeline-progress">
+                                <div class="cw-pipeline-progress-track">
+                                    <div class="cw-pipeline-progress-fill{% if progress == 100 %} is-complete{% endif %}" id="pipeline-progress-{{ stage_name }}" style="width: {{ progress }}%;" role="progressbar" aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <span class="cw-pipeline-pct" id="pipeline-text-{{ stage_name }}">{{ progress }}%</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </header>
+
+    <div class="row g-4">
+        <!-- Left: Workspace Tab Navigation & Panels -->
+        <div class="col-lg-8">
+            <!-- Tabs Navigation -->
+            <div class="cw-tabs-wrap glass-card">
+                <ul class="cw-tabs nav" id="workspaceTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="cw-tab-btn nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button" role="tab" aria-selected="true"><i class="bi bi-grid-1x2" aria-hidden="true"></i>Overview</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="cw-tab-btn nav-link" id="today-tab" data-bs-toggle="tab" data-bs-target="#tab-today" type="button" role="tab"><i class="bi bi-check2-square" aria-hidden="true"></i>Today's Focus</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="cw-tab-btn nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tab-tasks" type="button" role="tab"><i class="bi bi-list-task" aria-hidden="true"></i>Tasks</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="cw-tab-btn nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#tab-files" type="button" role="tab"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>Files</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="cw-tab-btn nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#tab-notes" type="button" role="tab"><i class="bi bi-pencil-square" aria-hidden="true"></i>Notes</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="cw-tab-btn nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#tab-reports" type="button" role="tab"><i class="bi bi-file-earmark-bar-graph" aria-hidden="true"></i>Reports</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="cw-tab-btn nav-link" id="automations-tab" data-bs-toggle="tab" data-bs-target="#tab-automations" type="button" role="tab"><i class="bi bi-robot" aria-hidden="true"></i>Automations</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="cw-tab-btn nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#tab-activity" type="button" role="tab"><i class="bi bi-clock-history" aria-hidden="true"></i>Activity</button>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Tab Panels Content -->
+            <div class="tab-content" id="workspaceTabsContent">
+                
+                <!-- Tab 1: Overview (Marketing Intelligence + Stage Checklists) -->
+                <div class="tab-pane fade show active" id="tab-overview" role="tabpanel">
+                    <div class="cw-intel-grid">
+                        <div class="cw-intel-card">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="cw-intel-card-label text-indigo">Best Next Action</span>
+                                <span class="cw-priority-badge priority-high">High Impact</span>
+                            </div>
+                            <h4 class="cw-intel-card-title">{{ best_next_action.action }}</h4>
+                            <p class="cw-intel-card-desc">{{ best_next_action.why }}</p>
+                            <div class="cw-intel-meta">
+                                <span>Impact: <strong class="text-teal">{{ best_next_action.impact }}</strong></span>
+                                <span>Time: <strong>{{ best_next_action.time_est }}</strong></span>
+                            </div>
+                            <button type="button" class="btn btn-primary-custom btn-sm w-100" onclick="executeBestNextAction('{{ best_next_action.action }}')">
+                                <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Complete Now
+                            </button>
+                        </div>
+                        {% set health_state = health.overall_health %}
+                        {% set health_display = 'Warning' if health_state == 'Needs Attention' else health_state %}
+                        {% set stage_pct = (health.stage_health.split('%')[0]|int) if '%' in health.stage_health else 0 %}
+                        {% set open_areas = health.incomplete_areas|reject('equalto', 'None - stage completed')|list %}
+                        {% if health_state == 'Critical' %}
+                            {% set health_badge_class = 'health-critical' %}
+                            {% set health_card_class = 'health-state-critical' %}
+                            {% set health_icon = 'bi-shield-exclamation' %}
+                            {% set health_summary = 'Immediate action required to prevent campaign setbacks.' %}
+                            {% set health_insight = 'Prioritize incomplete areas and resolve blockers before moving forward.' %}
+                        {% elif health_state == 'Needs Attention' %}
+                            {% set health_badge_class = 'health-warning' %}
+                            {% set health_card_class = 'health-state-warning' %}
+                            {% set health_icon = 'bi-exclamation-triangle' %}
+                            {% set health_summary = 'Some areas need attention to keep this campaign on track.' %}
+                            {% set health_insight = 'Focus on the listed items below to restore healthy momentum.' %}
+                        {% elif health_state == 'Excellent' %}
+                            {% set health_badge_class = 'health-excellent' %}
+                            {% set health_card_class = 'health-state-excellent' %}
+                            {% set health_icon = 'bi-shield-check' %}
+                            {% set health_summary = 'Campaign is performing strongly with excellent progress.' %}
+                            {% set health_insight = 'Maintain current pace — you are ahead on stage completion.' %}
+                        {% else %}
+                            {% set health_badge_class = 'health-good' %}
+                            {% set health_card_class = 'health-state-good' %}
+                            {% set health_icon = 'bi-heart-pulse' %}
+                            {% set health_summary = 'Healthy progress with steady momentum across the campaign.' %}
+                            {% set health_insight = 'Keep completing checklist items to reach Excellent health.' %}
+                        {% endif %}
+                        {% if health.trend == 'Declining' and health_state != 'Critical' %}
+                            {% set health_insight = 'Activity has slowed recently — complete pending tasks to reverse the decline.' %}
+                        {% elif health.trend == 'Improving' and health_state in ['Good', 'Excellent'] %}
+                            {% set health_insight = 'Momentum is improving — keep up the recent task completion pace.' %}
+                        {% endif %}
+                        <div class="cw-intel-card cw-health-card {{ health_card_class }}">
+                            <div class="cw-health-header">
+                                <span class="cw-intel-card-label">Campaign Health</span>
+                                <span class="cw-health-badge {{ health_badge_class }}">
+                                    <i class="bi {{ health_icon }}" aria-hidden="true"></i>{{ health_display }}
+                                </span>
+                            </div>
+
+                            <div class="cw-health-hero">
+                                <div class="cw-health-icon-ring" aria-hidden="true">
+                                    <i class="bi {{ health_icon }}"></i>
+                                </div>
+                                <div>
+                                    <h4 class="cw-health-status-title">{{ health_display }}</h4>
+                                    <p class="cw-health-status-summary">{{ health_summary }}</p>
+                                </div>
+                            </div>
+
+                            <div class="cw-health-meter" role="group" aria-label="Stage progress">
+                                <div class="cw-health-meter-head">
+                                    <span>Stage Progress</span>
+                                    <span class="cw-health-meter-pct">{{ stage_pct }}%</span>
+                                </div>
+                                <div class="cw-health-meter-track" role="progressbar" aria-valuenow="{{ stage_pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="Current stage completion">
+                                    <div class="cw-health-meter-fill" style="width: {{ stage_pct }}%;"></div>
+                                </div>
+                                <span class="cw-health-meter-caption">{{ health.stage_health }} · {{ campaign.current_stage }}</span>
+                            </div>
+
+                            <div class="cw-health-metrics">
+                                <div class="cw-health-metric">
+                                    <span class="cw-health-metric-label">Trend</span>
+                                    <span class="cw-health-metric-value trend-{{ health.trend|lower }}">
+                                        <i class="bi {% if health.trend == 'Improving' %}bi-arrow-up-right
+                                            {% elif health.trend == 'Declining' %}bi-arrow-down-right
+                                            {% else %}bi-dash-lg{% endif %}" aria-hidden="true"></i>
+                                        {{ health.trend }}
+                                    </span>
+                                </div>
+                                <div class="cw-health-metric">
+                                    <span class="cw-health-metric-label">Focus Items</span>
+                                    <span class="cw-health-metric-value">
+                                        <i class="bi bi-list-check text-indigo" aria-hidden="true"></i>
+                                        {{ open_areas|length }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <span class="cw-health-focus-title">{% if open_areas %}Areas Needing Attention{% else %}Stage Status{% endif %}</span>
+                                <ul class="cw-health-focus-list">
+                                    {% if open_areas %}
+                                        {% for area in open_areas %}
+                                            <li class="cw-health-focus-item">
+                                                <i class="bi bi-exclamation-circle text-warning" aria-hidden="true"></i>
+                                                <span>{{ area }}</span>
+                                            </li>
+                                        {% endfor %}
+                                    {% else %}
+                                        <li class="cw-health-focus-item is-clear">
+                                            <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                                            <span>All checklist items complete for the current stage.</span>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+
+                            <div class="cw-health-insight">
+                                <i class="bi bi-lightbulb" aria-hidden="true"></i>
+                                <span>{{ health_insight }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card p-3 mb-3">
+                        <h3 class="cw-section-title"><i class="bi bi-cpu" aria-hidden="true"></i>Marketing Insight Engine</h3>
+                        <div class="row g-2">
+                            {% for obs in insights %}
+                            <div class="col-md-6">
+                                <div class="cw-insight-chip"><span class="cw-insight-tag">OBS</span><span>{{ obs }}</span></div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="glass-card p-3 mb-3">
+                        <h3 class="cw-section-title"><i class="bi bi-shield-exclamation" aria-hidden="true"></i>Risks &amp; Opportunities</h3>
+                        <div class="row g-3">
+                            <div class="col-md-6" style="border-right: 1px solid rgba(255,255,255,0.05);">
+                                <span class="cw-intel-card-label text-danger d-block mb-2">Detected Risks</span>
+                                {% if risks %}
+                                    {% for risk in risks %}
+                                    <div class="cw-alert-card alert-risk">
+                                        <div class="cw-alert-title">{{ risk.title }}</div>
+                                        <p class="cw-alert-text">{{ risk.why }}</p>
+                                        <div class="cw-alert-action">{{ risk.action }}</div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="empty-state" style="padding: 1.5rem;"><p class="empty-state-text mb-0">No active campaign risks detected.</p></div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <span class="cw-intel-card-label text-teal d-block mb-2">Opportunities</span>
+                                {% if opportunities %}
+                                    {% for opp in opportunities %}
+                                    <div class="cw-alert-card alert-opp">
+                                        <div class="cw-alert-title">{{ opp.title }}</div>
+                                        <p class="cw-alert-text">{{ opp.why }}</p>
+                                        <div class="cw-alert-action">{{ opp.action }} ({{ opp.time_est }})</div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="empty-state" style="padding: 1.5rem;"><p class="empty-state-text mb-0">No new opportunities matching current stage.</p></div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card p-4">
+                        <h3 class="cw-section-title"><i class="bi bi-check-all" aria-hidden="true"></i>Lifecycle Checklist</h3>
+                        <div class="accordion cw-lifecycle" id="lifecycleAccordion">
+                            
+                            {% for stage_name, stage_items in [
+                                ('Onboarding', onboarding_items),
+                                ('Planning', planning_items),
+                                ('Execution', execution_items),
+                                ('Monitoring', monitoring_items),
+                                ('Reporting', reporting_items),
+                                ('Completed', completed_items)
+                            ] %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ stage_name }}">
+                                        {{ stage_name }} Checklist
+                                        <span class="cw-lifecycle-badge" id="accordion-badge-{{ stage_name }}">{{ campaign.get_stage_progress(stage_name) }}%</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse-{{ stage_name }}" class="accordion-collapse collapse {% if campaign.current_stage == stage_name %}show{% endif %}" data-bs-parent="#lifecycleAccordion">
+                                    <div class="accordion-body">
+                                        {% for item in stage_items %}
+                                        <div class="cw-checklist-row">
+                                            <div class="form-check mb-0">
+                                                <input class="form-check-input lifecycle-checkbox" type="checkbox" data-id="{{ item.id }}" id="checklist-item-{{ item.id }}" {% if item.is_completed %}checked{% endif %} aria-label="Toggle {{ item.name }}">
+                                                <label class="cw-checklist-label{% if item.is_completed %} is-complete{% endif %}" for="checklist-item-{{ item.id }}" id="label-item-{{ item.id }}">{{ item.name }}</label>
+                                            </div>
+                                            <span class="cw-checklist-hint">Check to complete</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Today's Work -->
+                <div class="tab-pane fade" id="tab-today" role="tabpanel">
+                    <div class="glass-card p-4">
+                        <h3 class="cw-section-title"><i class="bi bi-clock" aria-hidden="true"></i>Today's Focus</h3>
+                        <div id="workspace-today-tasks">
+                            {% if urgent_tasks or today_tasks or upcoming_tasks or waiting_tasks or completed_tasks %}
+                                {% if urgent_tasks %}
+                                <div class="cw-task-group-label label-urgent">Urgent Tasks</div>
+                                {% for task in urgent_tasks %}
+                                <div class="cw-task-item priority-urgent">
+                                    <input class="form-check-input task-complete-checkbox" type="checkbox" data-id="{{ task.id }}" aria-label="Complete {{ task.title }}">
+                                    <div><span class="cw-task-title">{{ task.title }}</span><span class="cw-task-meta">Overdue · High priority</span></div>
+                                </div>
+                                {% endfor %}{% endif %}
+                                {% if today_tasks %}
+                                <div class="cw-task-group-label label-today">Due Today</div>
+                                {% for task in today_tasks %}
+                                <div class="cw-task-item priority-today">
+                                    <input class="form-check-input task-complete-checkbox" type="checkbox" data-id="{{ task.id }}" aria-label="Complete {{ task.title }}">
+                                    <div><span class="cw-task-title">{{ task.title }}</span><span class="cw-task-meta">Due today</span></div>
+                                </div>
+                                {% endfor %}{% endif %}
+                                {% if upcoming_tasks %}
+                                <div class="cw-task-group-label label-upcoming">Upcoming</div>
+                                {% for task in upcoming_tasks %}
+                                <div class="cw-task-item priority-upcoming">
+                                    <input class="form-check-input task-complete-checkbox" type="checkbox" data-id="{{ task.id }}" aria-label="Complete {{ task.title }}">
+                                    <div><span class="cw-task-title">{{ task.title }}</span><span class="cw-task-meta">Due: {{ task.due_date.strftime('%b %d') if task.due_date else '—' }}</span></div>
+                                </div>
+                                {% endfor %}{% endif %}
+                                {% if waiting_tasks %}
+                                <div class="cw-task-group-label label-waiting">Waiting for Client</div>
+                                {% for task in waiting_tasks %}
+                                <div class="cw-task-item priority-waiting">
+                                    <input class="form-check-input task-complete-checkbox" type="checkbox" data-id="{{ task.id }}" aria-label="Complete {{ task.title }}">
+                                    <div><span class="cw-task-title">{{ task.title }}</span><span class="cw-task-meta">Blocked on feedback</span></div>
+                                </div>
+                                {% endfor %}{% endif %}
+                                {% if completed_tasks %}
+                                <div class="cw-task-group-label label-done">Completed Recently</div>
+                                {% for task in completed_tasks %}
+                                <div class="cw-task-item is-completed">
+                                    <input class="form-check-input task-complete-checkbox" type="checkbox" data-id="{{ task.id }}" checked aria-label="Completed {{ task.title }}">
+                                    <div><span class="cw-task-title">{{ task.title }}</span><span class="cw-task-meta">Finished</span></div>
+                                </div>
+                                {% endfor %}{% endif %}
+                            {% else %}
+                                <div class="empty-state"><i class="bi bi-check2-square empty-state-icon" aria-hidden="true"></i><h4 class="empty-state-title">No active tasks</h4><p class="empty-state-text">Create a task to start tracking campaign work.</p><button type="button" class="btn btn-primary-custom btn-sm" onclick="triggerCampaignTaskCreate()">New Task</button></div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Tasks List CRUD -->
+                <div class="tab-pane fade" id="tab-tasks" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="cw-section-title mb-0"><i class="bi bi-list-task" aria-hidden="true"></i>All Campaign Tasks</h3>
+                        <button class="btn btn-primary-custom btn-sm" onclick="triggerCampaignTaskCreate()"><i class="bi bi-plus-circle me-1" aria-hidden="true"></i>New Task</button>
+                    </div>
+                    <div class="glass-card p-3">
+                        <div class="table-responsive">
+                            <table class="table table-custom align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;">Status</th>
+                                        <th>Task Details</th>
+                                        <th>Priority</th>
+                                        <th>Due Date</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if prioritized_tasks.high or prioritized_tasks.medium or prioritized_tasks.low %}
+                                        <!-- High Priority Group -->
+                                        {% if prioritized_tasks.high %}
+                                            <tr><td colspan="5" class="cw-task-group-label label-urgent py-2">High Priority</td></tr>
+                                            {% for task in prioritized_tasks.high %}
+                                                <tr id="task-row-workspace-{{ task.id }}">
+                                                    <td><input class="form-check-input task-complete-checkbox" type="checkbox" data-id="{{ task.id }}" {% if task.status == 'completed' %}checked{% endif %} aria-label="Toggle {{ task.title }}"></td>
+                                                    <td><span class="cw-task-title d-block">{{ task.title }}</span>{% if task.description %}<span class="cw-task-meta">{{ task.description }}</span>{% endif %}</td>
+                                                    <td><span class="cw-priority-badge priority-high">High</span></td>
+                                                    <td><span class="cw-task-meta">{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '—' }}</span></td>
+                                                    <td class="text-end"><button class="btn btn-link text-danger p-0" onclick="archiveWorkspaceTask({{ task.id }})" aria-label="Archive task"><i class="bi bi-archive"></i></button></td>
+                                                </tr>
+                                            {% endfor %}
+                                        {% endif %}
+                                        {% if prioritized_tasks.medium %}
+                                            <tr><td colspan="5" class="cw-task-group-label label-waiting py-2">Medium Priority</td></tr>
+                                            {% for task in prioritized_tasks.medium %}
+                                                <tr id="task-row-workspace-{{ task.id }}">
+                                                    <td><input class="form-check-input task-complete-checkbox" type="checkbox" data-id="{{ task.id }}" {% if task.status == 'completed' %}checked{% endif %} aria-label="Toggle {{ task.title }}"></td>
+                                                    <td><span class="cw-task-title d-block">{{ task.title }}</span>{% if task.description %}<span class="cw-task-meta">{{ task.description }}</span>{% endif %}</td>
+                                                    <td><span class="cw-priority-badge priority-medium">Medium</span></td>
+                                                    <td><span class="cw-task-meta">{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '—' }}</span></td>
+                                                    <td class="text-end"><button class="btn btn-link text-danger p-0" onclick="archiveWorkspaceTask({{ task.id }})" aria-label="Archive task"><i class="bi bi-archive"></i></button></td>
+                                                </tr>
+                                            {% endfor %}
+                                        {% endif %}
+                                        {% if prioritized_tasks.low %}
+                                            <tr><td colspan="5" class="cw-task-group-label label-done py-2">Low Priority &amp; Completed</td></tr>
+                                            {% for task in prioritized_tasks.low %}
+                                                <tr id="task-row-workspace-{{ task.id }}">
+                                                    <td><input class="form-check-input task-complete-checkbox" type="checkbox" data-id="{{ task.id }}" {% if task.status == 'completed' %}checked{% endif %} aria-label="Toggle {{ task.title }}"></td>
+                                                    <td><span class="cw-task-title d-block"{% if task.status == 'completed' %} style="text-decoration:line-through;opacity:0.55"{% endif %}>{{ task.title }}</span>{% if task.description %}<span class="cw-task-meta">{{ task.description }}</span>{% endif %}</td>
+                                                    <td>{% if task.status == 'completed' %}<span class="cw-priority-badge priority-done">Done</span>{% else %}<span class="cw-priority-badge priority-low">Low</span>{% endif %}</td>
+                                                    <td><span class="cw-task-meta">{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '—' }}</span></td>
+                                                    <td class="text-end"><button class="btn btn-link text-danger p-0" onclick="archiveWorkspaceTask({{ task.id }})" aria-label="Archive task"><i class="bi bi-archive"></i></button></td>
+                                                </tr>
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% else %}
+                                        <tr><td colspan="5"><div class="empty-state" style="padding:2rem"><p class="empty-state-text mb-2">No tasks linked yet.</p><button type="button" class="btn btn-primary-custom btn-sm" onclick="triggerCampaignTaskCreate()">Create Task</button></div></td></tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 4: Files (DAM) -->
+                <div class="tab-pane fade" id="tab-files" role="tabpanel">
+                    <div class="row g-4">
+                        <div class="col-md-5">
+                            <div class="glass-card p-3">
+                                <h4 class="cw-section-title">Upload File</h4>
+                                <form id="campaign-file-upload-form" onsubmit="handleCampaignFileUpload(event)">
+                                    <div class="mb-3">
+                                        <input type="file" id="campaign-file-input" class="form-control form-control-custom" required aria-label="Choose file to upload">
+                                    </div>
+                                    <button type="submit" class="btn btn-primary-custom btn-sm w-100" id="campaign-file-upload-btn">Upload to DAM</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="col-md-7">
+                            <div class="glass-card p-3">
+                                <h4 class="cw-section-title">Digital Asset Repository</h4>
+                                <div id="campaign-files-list">
+                                    {% if assets %}
+                                        {% for asset in assets %}
+                                        <div class="cw-file-row" id="workspace-asset-{{ asset.id }}">
+                                            <div>
+                                                <div class="cw-file-name">{{ asset.name }}</div>
+                                                <div class="cw-file-meta">{{ (asset.file_size/1024)|round(1) }} KB · {{ asset.file_type }}</div>
+                                            </div>
+                                            <div class="d-flex gap-1">
+                                                <a href="/api/v1/dam/assets/{{ asset.id }}/download" class="btn btn-secondary-custom btn-sm" aria-label="Download {{ asset.name }}"><i class="bi bi-download"></i></a>
+                                                <button class="btn btn-secondary-custom btn-sm text-danger" onclick="deleteWorkspaceFile({{ asset.id }})" aria-label="Delete {{ asset.name }}"><i class="bi bi-trash"></i></button>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="empty-state" id="workspace-no-files" style="padding: 2rem;"><i class="bi bi-folder2 empty-state-icon" aria-hidden="true"></i><p class="empty-state-text mb-0">No files uploaded yet.</p></div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 5: Notes Notepad -->
+                <div class="tab-pane fade" id="tab-notes" role="tabpanel">
+                    <div class="row g-3" style="min-height: 400px;">
+                        <div class="col-md-4">
+                            <div class="glass-card p-3 h-100">
+                                <button class="btn btn-primary-custom btn-sm w-100 mb-3" onclick="createCampaignWorkspaceNote()"><i class="bi bi-plus-circle me-1" aria-hidden="true"></i>New Note</button>
+                                <div class="overflow-auto" id="campaign-notes-list" style="max-height: 300px;">
+                                    {% if notes %}
+                                        {% for note in notes %}
+                                        <div class="cw-note-item note-list-item" id="workspace-note-item-{{ note.id }}" data-note-id="{{ note.id }}" data-note-title="{{ note.title | e }}" data-note-body='{{ note.body | tojson }}' role="button" tabindex="0">
+                                            <div class="cw-note-item-title workspace-note-title">{{ note.title }}</div>
+                                            <div class="cw-note-item-preview">{{ note.body|striptags|truncate(25) }}</div>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="empty-state" id="workspace-no-notes" style="padding: 1.5rem;"><p class="empty-state-text mb-0">No notes saved.</p></div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="glass-card p-3 cw-note-editor">
+                                <input type="hidden" id="workspace-active-note-id" value="">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <input type="text" id="workspace-note-title" class="cw-note-title-input" placeholder="Untitled Note" oninput="triggerWorkspaceAutosave()" aria-label="Note title">
+                                    <span class="cw-autosave-badge" id="workspace-autosave-badge">Saved</span>
+                                </div>
+                                <textarea id="workspace-note-body" class="cw-note-body-input" rows="12" placeholder="Start jotting metrics or campaign logs…" oninput="triggerWorkspaceAutosave()" aria-label="Note body"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 6: Reports -->
+                <div class="tab-pane fade" id="tab-reports" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="cw-section-title mb-0"><i class="bi bi-file-earmark-bar-graph" aria-hidden="true"></i>Campaign KPI Reports</h3>
+                        <button class="btn btn-primary-custom btn-sm" onclick="triggerWorkspaceReportCreate()"><i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>Compile Report</button>
+                    </div>
+                    {% set draft_report = reports | selectattr('title', 'equalto', '[Auto Draft] Campaign Summary Brief') | first %}
+                    {% if draft_report %}
+                    <div class="cw-draft-banner">
+                        <div>
+                            <h4 class="cw-intel-card-title mb-1"><i class="bi bi-robot text-indigo me-1" aria-hidden="true"></i>Smart Draft Prepared</h4>
+                            <p class="cw-intel-card-desc mb-0">Executive summary, email draft, and WhatsApp update brief are ready.</p>
+                        </div>
+                        <button class="btn btn-primary-custom btn-sm" onclick="openSmartDraftModal({{ draft_report.id }}, '{{ draft_report.title }}', {{ draft_report.content_markdown|tojson }})"><i class="bi bi-eye me-1" aria-hidden="true"></i>Review Draft</button>
+                    </div>
+                    {% endif %}
+                    <div class="row g-3">
+                        {% if reports %}
+                            {% for report in reports %}
+                                {% if report.title != '[Auto Draft] Campaign Summary Brief' %}
+                                <div class="col-md-6">
+                                    <div class="cw-report-card">
+                                        <div>
+                                            <span class="cw-task-title d-block">{{ report.title }}</span>
+                                            <span class="cw-task-meta">Compiled: {{ report.created_at.strftime('%Y-%m-%d') }}</span>
+                                        </div>
+                                        <a href="/api/reports/export/{{ report.id }}" class="btn btn-primary-custom btn-sm"><i class="bi bi-download me-1" aria-hidden="true"></i>PDF</a>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <div class="col-12"><div class="empty-state"><i class="bi bi-file-earmark-bar-graph empty-state-icon" aria-hidden="true"></i><p class="empty-state-text mb-2">No reports compiled yet.</p><button type="button" class="btn btn-primary-custom btn-sm" onclick="triggerWorkspaceReportCreate()">Compile Report</button></div></div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-automations" role="tabpanel">
+                    <div class="glass-card p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h3 class="cw-section-title mb-0"><i class="bi bi-robot" aria-hidden="true"></i>Automation Center</h3>
+                            <span class="cw-priority-badge priority-low">Active Rules</span>
+                        </div>
+                        <p class="cw-intel-card-desc mb-4">Toggle automated rules for report drafting, task reminders, and archiving.</p>
+                        {% for rule in automation_rules %}
+                        <div class="cw-automation-row">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="cw-automation-icon"><i class="bi bi-cpu" aria-hidden="true"></i></div>
+                                <div>
+                                    <span class="cw-task-title d-block">
+                                        {% if rule.trigger_type == 'deadline_tomorrow' %}IF Task Deadline is Tomorrow
+                                        {% elif rule.trigger_type == 'stage_start_reporting' %}IF Reporting Stage Starts
+                                        {% elif rule.trigger_type == 'campaign_completed' %}IF Campaign Stage is Completed
+                                        {% else %}Rule: {{ rule.trigger_type }}{% endif %}
+                                    </span>
+                                    <span class="cw-task-meta">
+                                        {% if rule.action_type == 'create_reminder' %}THEN Create high-priority reminder
+                                        {% elif rule.action_type == 'prepare_report_draft' %}THEN Pre-compile PDF, WhatsApp, and email briefs
+                                        {% elif rule.action_type == 'suggest_archive' %}THEN Recommend archiving files and tasks
+                                        {% else %}THEN {{ rule.action_type }}{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="automation-switch-{{ rule.id }}" {% if rule.is_enabled %}checked{% endif %} onchange="toggleAutomationRule({{ rule.id }})" aria-label="Toggle automation rule">
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-activity" role="tabpanel">
+                    <div class="glass-card p-4">
+                        <h3 class="cw-section-title"><i class="bi bi-clock-history" aria-hidden="true"></i>Activity Timeline</h3>
+                        <div class="overflow-y-auto" style="max-height: 400px;">
+                            {% if activity_logs %}
+                                {% for log in activity_logs %}
+                                <div class="cw-activity-row">
+                                    <div>
+                                        <span class="cw-activity-badge {% if log.activity_type == 'task_completed' %}type-task{% elif log.activity_type == 'report_generated' %}type-report{% elif log.activity_type == 'note_added' %}type-note{% else %}type-default{% endif %}">{{ log.activity_type | replace('_', ' ') }}</span>
+                                        <span style="color: hsl(var(--text-secondary)); font-size: 0.75rem;">{{ log.description }}</span>
+                                    </div>
+                                    <span class="cw-activity-time">{{ log.created_at.strftime('%m-%d %H:%M') }}</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="empty-state"><i class="bi bi-clock-history empty-state-icon" aria-hidden="true"></i><p class="empty-state-text mb-0">No activity logged yet.</p></div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Right Side: Actionable AI Recommendation Cards (Recommendation Engine) -->
+        <div class="col-lg-4">
+            <div class="cw-ai-panel glass-card p-4">
+                <h3 class="cw-section-title"><i class="bi bi-cpu" aria-hidden="true"></i>AI Action Suggestions</h3>
+                <div id="recommendations-container">
+                    {% if recommendations %}
+                        {% for rec in recommendations %}
+                        <div class="cw-rec-card priority-{{ rec.priority }}">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="cw-priority-badge priority-{{ rec.priority }}">{{ rec.priority }} priority</span>
+                                <span class="cw-task-meta">Conf: {{ rec.confidence }}</span>
+                            </div>
+                            <h4 class="cw-rec-title">{{ rec.title }}</h4>
+                            <span class="cw-rec-field-label">Why</span>
+                            <p class="cw-rec-field-text">{{ rec.why }}</p>
+                            <span class="cw-rec-field-label">What to do</span>
+                            <p class="cw-rec-action"><i class="bi bi-arrow-right-short" aria-hidden="true"></i>{{ rec.action }}</p>
+                            <span class="cw-rec-field-label">If ignored</span>
+                            <p class="cw-rec-field-text">{{ rec.consequence }}</p>
+                            <div class="cw-rec-footer">
+                                <div><span class="cw-rec-field-label">Est. Time</span><span class="cw-task-title d-block" style="font-size:0.72rem">{{ rec.time_est }}</span></div>
+                                <div><span class="cw-rec-field-label">Impact</span><span class="text-teal fw-bold d-block" style="font-size:0.72rem">{{ rec.impact }}</span></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="bi bi-shield-check empty-state-icon text-teal" aria-hidden="true"></i>
+                            <h4 class="empty-state-title">All checks healthy</h4>
+                            <p class="empty-state-text mb-0">No active alerts or missing actions detected.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals inside Workspace -->
+<!-- Create Task -->
+<div class="modal fade" id="workspaceCreateTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-custom">
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title text-white"><i class="bi bi-check2-square text-indigo me-2"></i>New Task</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form onsubmit="handleWorkspaceCreateTask(event)">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="ws-task-title" class="form-label-custom">Task Title *</label>
+                        <input type="text" id="ws-task-title" class="form-control form-control-custom" required placeholder="e.g. Set up pixel tracking script">
+                    </div>
+                    <div class="mb-3">
+                        <label for="ws-task-desc" class="form-label-custom">Description</label>
+                        <textarea id="ws-task-desc" class="form-control form-control-custom" rows="3"></textarea>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label for="ws-task-priority" class="form-label-custom">Priority</label>
+                            <select id="ws-task-priority" class="form-select form-control-custom">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label for="ws-task-due" class="form-label-custom">Due Date</label>
+                            <input type="date" id="ws-task-due" class="form-control form-control-custom">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer modal-footer-custom">
+                    <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom">Create Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Compile Report -->
+<div class="modal fade" id="workspaceCreateReportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-custom">
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title text-white"><i class="bi bi-file-earmark-bar-graph text-indigo me-2"></i>Compile Campaign Report</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form onsubmit="handleWorkspaceCreateReport(event)">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="ws-report-title" class="form-label-custom">Report Title *</label>
+                        <input type="text" id="ws-report-title" class="form-control form-control-custom" required value="Performance Summary Report">
+                    </div>
+                </div>
+                <div class="modal-footer modal-footer-custom">
+                    <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom">Compile PDF</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.sidebar-item').forEach(l => l.classList.remove('active'));
+        const activeLink = document.getElementById('sidebar-campaigns');
+        if (activeLink) activeLink.classList.add('active');
+
+        document.querySelectorAll('.lifecycle-checkbox').forEach(cb => {
+            cb.addEventListener('change', function() {
+                const itemId = this.getAttribute('data-id');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                fetch(`/content/campaigns/{{ campaign.id }}/checklist/toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ item_id: parseInt(itemId) })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const label = document.getElementById(`label-item-${itemId}`);
+                        if (label) label.classList.toggle('is-complete', data.is_completed);
+                        
+                        document.getElementById('overall-progress-score').textContent = data.overall_progress + '%';
+                        const overallFill = document.getElementById('overall-progress-fill');
+                        if (overallFill) overallFill.style.width = data.overall_progress + '%';
+                        
+                        const progBar = document.getElementById(`pipeline-progress-${data.stage}`);
+                        if (progBar) {
+                            progBar.style.width = data.stage_progress + '%';
+                            progBar.setAttribute('aria-valuenow', data.stage_progress);
+                            if (data.stage_progress === 100) progBar.classList.add('is-complete');
+                        }
+                        const progTxt = document.getElementById(`pipeline-text-${data.stage}`);
+                        if (progTxt) progTxt.textContent = data.stage_progress + '%';
+                        
+                        const accordionBadge = document.getElementById(`accordion-badge-${data.stage}`);
+                        if (accordionBadge) accordionBadge.textContent = data.stage_progress + '%';
+                        
+                        reloadRecommendationsWidget();
+                    } else {
+                        if (window.showToast) showToast('Error: ' + data.error, 'danger');
+                        else alert('Error: ' + data.error);
+                        this.checked = !this.checked;
+                    }
+                })
+                .catch(() => { this.checked = !this.checked; });
+            });
+        });
+
+        const notesList = document.getElementById('campaign-notes-list');
+        if (notesList) {
+            notesList.addEventListener('click', function(e) {
+                const item = e.target.closest('.note-list-item');
+                if (!item) return;
+                let body = '';
+                try { body = JSON.parse(item.getAttribute('data-note-body') || '""'); } catch (err) { body = ''; }
+                loadCampaignNote(item.getAttribute('data-note-id'), item.getAttribute('data-note-title'), body);
+            });
+            notesList.addEventListener('keydown', function(e) {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                const item = e.target.closest('.note-list-item');
+                if (!item) return;
+                e.preventDefault();
+                item.click();
+            });
+        }
+
+        const noteItems = document.querySelectorAll('#campaign-notes-list .note-list-item');
+        if (noteItems.length > 0) noteItems[0].click();
+        else createCampaignWorkspaceNote();
+    });
+
+    // Change Campaign Stage Dropdown Action
+    function changeCampaignStage(stageValue) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch(`/content/campaigns/{{ campaign.id }}/stage`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({ stage: stageValue })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Failed to advance stage: ' + data.error);
+            }
+        })
+        .catch(err => console.error(err));
+    }
+
+    // Dynamic Recommendations Widget Refresher
+    function reloadRecommendationsWidget() {
+        const container = document.getElementById('recommendations-container');
+        // Fetch recommendations directly from API or page html fragment if needed
+        // For simplicity and stability, we can extract details from elements or fetch workspace reload.
+        // Let's trigger a page refresh or simply let the user see details.
+        // A direct AJAX reload keeps it smooth:
+        fetch(window.location.href)
+        .then(res => res.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newWidget = doc.getElementById('recommendations-container').innerHTML;
+            container.innerHTML = newWidget;
+        });
+    }
+
+    // Tasks Actions
+    function triggerCampaignTaskCreate() {
+        const modal = new bootstrap.Modal(document.getElementById('workspaceCreateTaskModal'));
+        modal.show();
+    }
+
+    function handleWorkspaceCreateTask(event) {
+        event.preventDefault();
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        const title = document.getElementById('ws-task-title').value;
+        const description = document.getElementById('ws-task-desc').value;
+        const priority = document.getElementById('ws-task-priority').value;
+        const due_date = document.getElementById('ws-task-due').value;
+        const project_id = "{{ campaign.project_id }}";
+        const campaign_id = "{{ campaign.id }}";
+        
+        fetch('/api/tasks/new', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({
+                title, description, priority, due_date, campaign_id, project_id
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Error creating task: ' + data.error);
+            }
+        })
+        .catch(err => console.error(err));
+    }
+
+    function archiveWorkspaceTask(taskId) {
+        if (!confirm('Are you sure you want to archive this task?')) return;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch(`/api/tasks/archive/${taskId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const tr = document.getElementById(`task-row-workspace-${taskId}`);
+                if (tr) tr.remove();
+            } else {
+                alert('Archive failed: ' + data.error);
+            }
+        })
+        .catch(err => console.error(err));
+    }
+
+    // Files Upload inside Workspace
+    function handleCampaignFileUpload(event) {
+        event.preventDefault();
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const fileInput = document.getElementById('campaign-file-input');
+        const file = fileInput.files[0];
+        if (!file) return;
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const btn = document.getElementById('campaign-file-upload-btn');
+        btn.disabled = true;
+        btn.textContent = 'Uploading...';
+        
+        fetch('/api/v1/dam/assets/upload', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-Token': csrfToken
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.textContent = 'Upload to DAM';
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Upload failed: ' + data.error);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            btn.disabled = false;
+            btn.textContent = 'Upload to DAM';
+            alert('Upload failed.');
+        });
+    }
+
+    function deleteWorkspaceFile(assetId) {
+        if (!confirm('Delete file permanently?')) return;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch(`/api/v1/dam/assets/${assetId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const card = document.getElementById(`workspace-asset-${assetId}`);
+                if (card) card.remove();
+            } else {
+                alert('Delete failed: ' + data.error);
+            }
+        })
+        .catch(err => console.error(err));
+    }
+
+    // Notes Workspace inside Campaign Detail
+    let wsAutosaveTimeout = null;
+    function loadCampaignNote(id, title, body) {
+        document.querySelectorAll('#campaign-notes-list .note-list-item').forEach(item => item.classList.remove('is-active'));
+        const activeItem = document.getElementById(`workspace-note-item-${id}`);
+        if (activeItem) activeItem.classList.add('is-active');
+        
+        document.getElementById('workspace-active-note-id').value = id;
+        document.getElementById('workspace-note-title').value = title;
+        document.getElementById('workspace-note-body').value = body || '';
+        setAutosaveBadge('saved');
+    }
+
+    function setAutosaveBadge(state) {
+        const badge = document.getElementById('workspace-autosave-badge');
+        if (!badge) return;
+        badge.className = 'cw-autosave-badge';
+        if (state === 'saving') { badge.textContent = 'Saving…'; badge.classList.add('is-saving'); }
+        else if (state === 'draft') { badge.textContent = 'Draft'; badge.classList.add('is-draft'); }
+        else if (state === 'error') { badge.textContent = 'Save Failed'; badge.classList.add('is-error'); }
+        else { badge.textContent = 'Saved'; }
+    }
+
+    function createCampaignWorkspaceNote() {
+        document.getElementById('workspace-active-note-id').value = '';
+        document.getElementById('workspace-note-title').value = 'Untitled Note';
+        document.getElementById('workspace-note-body').value = '';
+        setAutosaveBadge('draft');
+        document.querySelectorAll('#campaign-notes-list .note-list-item').forEach(item => item.classList.remove('is-active'));
+    }
+
+    function triggerWorkspaceAutosave() {
+        setAutosaveBadge('saving');
+        if (wsAutosaveTimeout) clearTimeout(wsAutosaveTimeout);
+        wsAutosaveTimeout = setTimeout(saveWorkspaceNote, 1000);
+    }
+
+    function saveWorkspaceNote() {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const id = document.getElementById('workspace-active-note-id').value;
+        const title = document.getElementById('workspace-note-title').value || 'Untitled Note';
+        const body = document.getElementById('workspace-note-body').value;
+        const campaign_id = "{{ campaign.id }}";
+        const project_id = "{{ campaign.project_id }}";
+        
+        fetch('/api/notes/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({
+                id: id ? parseInt(id) : null,
+                title,
+                body,
+                campaign_id: parseInt(campaign_id),
+                project_id: parseInt(project_id)
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                setAutosaveBadge('saved');
+                if (!id) {
+                    document.getElementById('workspace-active-note-id').value = data.note_id;
+                    const listContainer = document.getElementById('campaign-notes-list');
+                    const noNotes = document.getElementById('workspace-no-notes');
+                    if (noNotes) noNotes.remove();
+                    
+                    const newItem = document.createElement('div');
+                    newItem.className = 'cw-note-item note-list-item is-active';
+                    newItem.id = `workspace-note-item-${data.note_id}`;
+                    newItem.setAttribute('data-note-id', data.note_id);
+                    newItem.setAttribute('data-note-title', title);
+                    newItem.setAttribute('data-note-body', JSON.stringify(body));
+                    newItem.setAttribute('role', 'button');
+                    newItem.setAttribute('tabindex', '0');
+                    newItem.innerHTML = `<div class="cw-note-item-title workspace-note-title"></div><div class="cw-note-item-preview"></div>`;
+                    newItem.querySelector('.workspace-note-title').textContent = title;
+                    newItem.querySelector('.cw-note-item-preview').textContent = body.substring(0, 25);
+                    listContainer.insertBefore(newItem, listContainer.firstChild);
+                    document.querySelectorAll('#campaign-notes-list .note-list-item').forEach(item => {
+                        if (item.id !== newItem.id) item.classList.remove('is-active');
+                    });
+                } else {
+                    const activeItem = document.getElementById(`workspace-note-item-${id}`);
+                    if (activeItem) {
+                        activeItem.querySelector('.workspace-note-title').textContent = title;
+                        activeItem.setAttribute('data-note-title', title);
+                        activeItem.setAttribute('data-note-body', JSON.stringify(body));
+                        const preview = activeItem.querySelector('.cw-note-item-preview');
+                        if (preview) preview.textContent = body.substring(0, 25);
+                    }
+                }
+            } else {
+                setAutosaveBadge('error');
+            }
+        })
+        .catch(() => setAutosaveBadge('error'));
+    }
+
+    // Reports compilation inside Workspace
+    function triggerWorkspaceReportCreate() {
+        const modal = new bootstrap.Modal(document.getElementById('workspaceCreateReportModal'));
+        modal.show();
+    }
+
+    function handleWorkspaceCreateReport(event) {
+        event.preventDefault();
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        const title = document.getElementById('ws-report-title').value;
+        const campaign_id = "{{ campaign.id }}";
+        const project_id = "{{ campaign.project_id }}";
+        
+        fetch('/api/reports/new', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({
+                title, campaign_id, project_id
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = `/api/reports/export/${data.report.id}`;
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                alert('Failed to compile report: ' + data.error);
+            }
+        })
+        .catch(err => console.error(err));
+    }
+
+    // Execute Best Next Action quick-navigation handler
+    function executeBestNextAction(actionName) {
+        if (actionName.includes('Audience') || actionName.includes('Target')) {
+            // Expand Onboarding accordion stage
+            const btn = document.querySelector('[data-bs-target="#collapse-Onboarding"]');
+            if (btn) {
+                if (btn.classList.contains('collapsed')) btn.click();
+                btn.scrollIntoView({ behavior: 'smooth' });
+            }
+            showToast("Follow the Onboarding checklist to document target audience.", "info");
+        } else if (actionName.includes('Tracking') || actionName.includes('Pixel')) {
+            const btn = document.querySelector('[data-bs-target="#collapse-Execution"]');
+            if (btn) {
+                if (btn.classList.contains('collapsed')) btn.click();
+                btn.scrollIntoView({ behavior: 'smooth' });
+            }
+            showToast("Follow the Execution stage checklist to verify pixel tracking setup.", "info");
+        } else if (actionName.includes('Report') || actionName.includes('KPI')) {
+            const tab = document.getElementById('reports-tab');
+            if (tab) {
+                tab.click();
+                tab.scrollIntoView({ behavior: 'smooth' });
+            }
+        } else if (actionName.includes('Blog') || actionName.includes('Publish')) {
+            const tab = document.getElementById('files-tab');
+            if (tab) {
+                tab.click();
+                tab.scrollIntoView({ behavior: 'smooth' });
+            }
+        } else if (actionName.includes('Approval')) {
+            const btn = document.querySelector('[data-bs-target="#collapse-Planning"]');
+            if (btn) {
+                if (btn.classList.contains('collapsed')) btn.click();
+                btn.scrollIntoView({ behavior: 'smooth' });
+            }
+            showToast("Follow the Planning stage checklist to confirm strategy approval.", "info");
+        } else {
+            const tab = document.getElementById('tasks-tab');
+            if (tab) {
+                tab.click();
+                tab.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    }
+
+    // Toggle custom automation rule
+    function toggleAutomationRule(ruleId) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        fetch(`/content/campaigns/{{ campaign.id }}/automation-rules`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({ rule_id: ruleId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast("Automation settings updated successfully.", "success");
+            } else {
+                showToast("Failed to toggle automation rule.", "danger");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showToast("An error occurred.", "danger");
+        });
+    }
+
+    // Smart Draft Modal management
+    function openSmartDraftModal(reportId, title, markdown) {
+        document.getElementById('smart-draft-report-id').value = reportId;
+        
+        let whatsapp = "";
+        let email = "";
+        let pdf = markdown;
+        
+        const waMatch = markdown.match(/## WhatsApp Client Brief \(Copy-Paste\)\s*([\s\S]*?)(?=##|$)/i);
+        if (waMatch) {
+            whatsapp = waMatch[1].trim();
+        }
+        
+        const emailMatch = markdown.match(/## Email Template Draft\s*([\s\S]*?)(?=##|$)/i);
+        if (emailMatch) {
+            email = emailMatch[1].trim();
+        }
+        
+        document.getElementById('smart-draft-whatsapp').value = whatsapp;
+        document.getElementById('smart-draft-email').value = email;
+        document.getElementById('smart-draft-pdf').value = pdf;
+        
+        const modal = new bootstrap.Modal(document.getElementById('smartReportDraftModal'));
+        modal.show();
+    }
+    
+    function copyDraftToClipboard(elementId) {
+        const textarea = document.getElementById(elementId);
+        if (textarea) {
+            textarea.select();
+            document.execCommand('copy');
+            showToast("Copied to clipboard!", "success");
+        }
+    }
+    
+    function compilePDFFromDraft() {
+        const reportId = document.getElementById('smart-draft-report-id').value;
+        if (reportId) {
+            window.location.href = `/api/reports/export/${reportId}`;
+        }
+    }
+</script>
+
+<!-- Modal: Review Smart Draft Report -->
+<div class="modal fade" id="smartReportDraftModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content modal-content-custom" id="smartDraftModalContent">
+            <div class="modal-header modal-header-custom border-bottom border-theme-subtle">
+                <h5 class="modal-title text-white"><i class="bi bi-robot text-indigo me-2"></i>Review Prepared Smart Report Draft</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 text-xs">
+                <p class="text-slate-400 mb-3">The automation engine has prepared a draft performance report. Select an export format or copy templates below:</p>
+                
+                <div class="glass-card p-3 mb-3" style="background: rgba(255,255,255,0.005); border: 1px solid rgba(255,255,255,0.04);">
+                    <div class="text-white font-bold mb-1.5 uppercase text-[9px] tracking-wider text-indigo-400">WhatsApp Briefing (Chat Summary)</div>
+                    <textarea class="form-control bg-transparent text-slate-300 text-xs font-mono p-2 mb-2" id="smart-draft-whatsapp" rows="3" readonly style="resize: none; border-color: rgba(255,255,255,0.05);"></textarea>
+                    <button class="btn btn-secondary-custom btn-xs font-bold" onclick="copyDraftToClipboard('smart-draft-whatsapp')"><i class="bi bi-clipboard me-1"></i>Copy WhatsApp Brief</button>
+                </div>
+
+                <div class="glass-card p-3 mb-3" style="background: rgba(255,255,255,0.005); border: 1px solid rgba(255,255,255,0.04);">
+                    <div class="text-white font-bold mb-1.5 uppercase text-[9px] tracking-wider text-indigo-400">Email Draft Template</div>
+                    <textarea class="form-control bg-transparent text-slate-300 text-xs font-mono p-2 mb-2" id="smart-draft-email" rows="4" readonly style="resize: none; border-color: rgba(255,255,255,0.05);"></textarea>
+                    <button class="btn btn-secondary-custom btn-xs font-bold" onclick="copyDraftToClipboard('smart-draft-email')"><i class="bi bi-clipboard me-1"></i>Copy Email Draft</button>
+                </div>
+
+                <div class="glass-card p-3" style="background: rgba(255,255,255,0.005); border: 1px solid rgba(255,255,255,0.04);">
+                    <div class="text-white font-bold mb-1.5 uppercase text-[9px] tracking-wider text-indigo-400">PDF Report Document Draft</div>
+                    <textarea class="form-control bg-transparent text-slate-400 text-xs font-mono p-2 mb-2" id="smart-draft-pdf" rows="5" readonly style="resize: none; border-color: rgba(255,255,255,0.05);"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-custom border-top border-theme-subtle">
+                <input type="hidden" id="smart-draft-report-id">
+                <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary-custom" onclick="compilePDFFromDraft()"><i class="bi bi-file-earmark-pdf me-1"></i>Compile & Export PDF</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

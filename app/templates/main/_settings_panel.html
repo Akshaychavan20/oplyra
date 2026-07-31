@@ -1,0 +1,552 @@
+<!-- Settings Hub — modern SaaS layout -->
+<div id="panel-settings" class="tab-panel tab-hidden">
+    <div class="settings-hub">
+
+        <!-- Left: sticky settings navigation -->
+        <aside class="settings-nav" aria-label="Settings navigation">
+            <div class="settings-nav-header">
+                <p class="settings-nav-title">Settings</p>
+            </div>
+            <nav class="settings-nav-list" role="navigation">
+                <button type="button" class="settings-nav-item active" data-settings-section="profile" aria-current="page">
+                    <i class="bi bi-person" aria-hidden="true"></i><span>Profile</span>
+                </button>
+                <button type="button" class="settings-nav-item" data-settings-section="security">
+                    <i class="bi bi-shield-lock" aria-hidden="true"></i><span>Account &amp; Security</span>
+                </button>
+                <button type="button" class="settings-nav-item" data-settings-section="appearance">
+                    <i class="bi bi-palette" aria-hidden="true"></i><span>Appearance</span>
+                </button>
+                <button type="button" class="settings-nav-item" data-settings-section="ai">
+                    <i class="bi bi-cpu" aria-hidden="true"></i><span>AI Preferences</span>
+                </button>
+                <button type="button" class="settings-nav-item" data-settings-section="notifications">
+                    <i class="bi bi-bell" aria-hidden="true"></i><span>Notifications</span>
+                </button>
+                <button type="button" class="settings-nav-item" data-settings-section="locale">
+                    <i class="bi bi-globe2" aria-hidden="true"></i><span>Language</span>
+                </button>
+                <button type="button" class="settings-nav-item" data-settings-section="integrations">
+                    <i class="bi bi-plug" aria-hidden="true"></i><span>Connected Accounts</span>
+                </button>
+                <button type="button" class="settings-nav-item" data-settings-section="billing">
+                    <i class="bi bi-credit-card" aria-hidden="true"></i><span>Billing</span>
+                </button>
+                <button type="button" class="settings-nav-item" data-settings-section="privacy">
+                    <i class="bi bi-shield-check" aria-hidden="true"></i><span>Privacy &amp; Data</span>
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Right: settings content -->
+        <div class="settings-main">
+            <header class="settings-main-header">
+                <h2 class="settings-main-title" id="settings-section-heading">Profile</h2>
+                <p class="settings-main-desc" id="settings-section-description">Manage your personal information and account identity.</p>
+            </header>
+
+            <!-- Hidden theme select — synced by settings.js + theme.js -->
+            <select class="visually-hidden" id="settings-theme-mode" aria-hidden="true" tabindex="-1">
+                <option value="light">Light Mode</option>
+                <option value="dark">Dark Mode</option>
+                <option value="system">Follow OS System Settings</option>
+            </select>
+
+            <!-- PROFILE -->
+            <section id="settings-section-profile" class="settings-section active" aria-labelledby="settings-section-heading">
+                <div class="settings-card">
+                    <div class="settings-profile-hero">
+                        <div class="user-avatar settings-profile-avatar" aria-hidden="true">
+                            {{ current_user.username[0] | upper if current_user.username else 'U' }}
+                        </div>
+                        <div class="settings-profile-meta">
+                            <h3 id="settings-profile-name">{{ current_user.username }}</h3>
+                            <span class="settings-profile-badge" id="settings-profile-plan-badge">Pro Member</span>
+                        </div>
+                        <button type="button" class="btn btn-secondary-custom btn-sm ms-auto" onclick="activateSettingsSection('profile'); document.getElementById('settings-username').focus();">
+                            <i class="bi bi-pencil me-1"></i>Edit Profile
+                        </button>
+                    </div>
+                    <div class="settings-profile-stats">
+                        <div class="settings-stat-pill">
+                            <div class="settings-stat-label">Email</div>
+                            <div class="settings-stat-value text-truncate">{{ current_user.email }}</div>
+                        </div>
+                        <div class="settings-stat-pill">
+                            <div class="settings-stat-label">Joined</div>
+                            <div class="settings-stat-value">{{ current_user.created_at.strftime('%b %d, %Y') if current_user.created_at else '—' }}</div>
+                        </div>
+                        <div class="settings-stat-pill">
+                            <div class="settings-stat-label">Status</div>
+                            <div class="settings-stat-value text-success">Active</div>
+                        </div>
+                    </div>
+                    <hr class="settings-divider">
+                    <div class="settings-row">
+                        <div class="settings-field-group mb-0">
+                            <label for="settings-username" class="form-label-custom">Display Name</label>
+                            <input type="text" class="form-control form-control-custom" id="settings-username" value="{{ current_user.username }}" autocomplete="username">
+                        </div>
+                        <div class="settings-field-group mb-0">
+                            <label for="settings-email" class="form-label-custom">Email Address</label>
+                            <input type="email" class="form-control form-control-custom" id="settings-email" value="{{ current_user.email }}" autocomplete="email">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECURITY -->
+            <section id="settings-section-security" class="settings-section" aria-label="Account and security">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title"><i class="bi bi-key text-indigo"></i>Account &amp; Security</h3>
+                        <p class="settings-card-desc">Protect your account with strong authentication practices.</p>
+                    </div>
+                    <div class="settings-security-grid">
+                        <div class="settings-security-card">
+                            <h6>Change Password</h6>
+                            <p>Update your password to keep your account secure.</p>
+                            <a href="{{ url_for('auth.forgot_password') }}" class="btn btn-secondary-custom btn-sm">Reset Password</a>
+                        </div>
+                        <div class="settings-security-card">
+                            <h6>Active Sessions</h6>
+                            <p>You are currently signed in on this device.</p>
+                            <span class="badge rounded-pill" style="background: hsl(var(--success) / 0.12); color: hsl(var(--success)); font-size: 0.65rem;">Current session</span>
+                        </div>
+                        <div class="settings-security-card is-placeholder">
+                            <h6>Login History</h6>
+                            <p>Review recent sign-in activity across devices. Coming soon.</p>
+                            <span class="settings-future-tag">Coming soon</span>
+                        </div>
+                        <div class="settings-security-card is-placeholder">
+                            <h6>Two-Factor Authentication</h6>
+                            <p>Add an extra layer of security to your account. Coming soon.</p>
+                            <span class="settings-future-tag">Coming soon</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- APPEARANCE -->
+            <section id="settings-section-appearance" class="settings-section" aria-label="Appearance">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title"><i class="bi bi-brightness-high text-indigo"></i>Theme</h3>
+                        <p class="settings-card-desc">Choose how Oplyra looks on your device.</p>
+                    </div>
+                    <div class="settings-theme-grid" role="radiogroup" aria-label="Color theme">
+                        <button type="button" class="settings-theme-card active" data-theme="light" role="radio" aria-checked="true">
+                            <div class="settings-theme-preview settings-theme-preview-light" aria-hidden="true"></div>
+                            <span class="settings-theme-label">Light</span>
+                        </button>
+                        <button type="button" class="settings-theme-card" data-theme="dark" role="radio" aria-checked="false">
+                            <div class="settings-theme-preview settings-theme-preview-dark" aria-hidden="true"></div>
+                            <span class="settings-theme-label">Dark</span>
+                        </button>
+                        <button type="button" class="settings-theme-card" data-theme="system" role="radio" aria-checked="false">
+                            <div class="settings-theme-preview settings-theme-preview-system" aria-hidden="true"></div>
+                            <span class="settings-theme-label">System</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title"><i class="bi bi-droplet text-teal"></i>Accent Color</h3>
+                        <p class="settings-card-desc">Personalize buttons, links, and highlights across the app.</p>
+                    </div>
+                    <div class="settings-accent-grid">
+                        <button type="button" class="settings-accent-option active" data-palette="indigo" aria-label="Indigo accent">
+                            <span class="accent-color-btn accent-swatch-indigo active" data-palette="indigo"></span>
+                            <span class="settings-accent-name">Indigo</span>
+                        </button>
+                        <button type="button" class="settings-accent-option" data-palette="purple" aria-label="Purple accent">
+                            <span class="accent-color-btn accent-swatch-purple" data-palette="purple"></span>
+                            <span class="settings-accent-name">Purple</span>
+                        </button>
+                        <button type="button" class="settings-accent-option" data-palette="sunset" aria-label="Sunset accent">
+                            <span class="accent-color-btn accent-swatch-sunset" data-palette="sunset"></span>
+                            <span class="settings-accent-name">Sunset</span>
+                        </button>
+                        <button type="button" class="settings-accent-option" data-palette="emerald" aria-label="Emerald accent">
+                            <span class="accent-color-btn accent-swatch-emerald" data-palette="emerald"></span>
+                            <span class="settings-accent-name">Emerald</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title">Display Options</h3>
+                        <p class="settings-card-desc">Additional display preferences coming soon.</p>
+                    </div>
+                    <div class="settings-future-grid">
+                        <div class="settings-future-card">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="settings-card-title mb-0">Font Size</span>
+                                <span class="settings-future-tag">Coming soon</span>
+                            </div>
+                            <p class="settings-card-desc mb-0">Adjust base font size for readability.</p>
+                        </div>
+                        <div class="settings-future-card">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="settings-card-title mb-0">UI Density</span>
+                                <span class="settings-future-tag">Coming soon</span>
+                            </div>
+                            <p class="settings-card-desc mb-0">Switch between comfortable and compact layouts.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI PREFERENCES -->
+            <section id="settings-section-ai" class="settings-section" aria-label="AI preferences">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title"><i class="bi bi-cpu text-indigo"></i>AI Model</h3>
+                        <p class="settings-card-desc">Choose Auto to let Oplyra pick the best provider for each task, or lock to a preferred engine.</p>
+                    </div>
+                    <fieldset class="ai-provider-picker" id="ai-provider-picker" role="radiogroup" aria-label="Preferred AI model">
+                        <label class="ai-provider-option">
+                            <input type="radio" name="ai-preferred-provider" value="auto" checked>
+                            <span class="ai-provider-option-body">
+                                <span class="ai-provider-option-title">Auto <span class="badge bg-primary bg-opacity-25 text-primary ms-1">Recommended</span></span>
+                                <span class="ai-provider-option-desc">Routes each task to the best available provider</span>
+                            </span>
+                        </label>
+                        <label class="ai-provider-option">
+                            <input type="radio" name="ai-preferred-provider" value="openai">
+                            <span class="ai-provider-option-body">
+                                <span class="ai-provider-option-title">GPT</span>
+                                <span class="ai-provider-option-desc">OpenAI — strong marketing &amp; SEO copy</span>
+                            </span>
+                        </label>
+                        <label class="ai-provider-option">
+                            <input type="radio" name="ai-preferred-provider" value="anthropic">
+                            <span class="ai-provider-option-body">
+                                <span class="ai-provider-option-title">Claude</span>
+                                <span class="ai-provider-option-desc">Anthropic — long-form writing &amp; reasoning</span>
+                            </span>
+                        </label>
+                        <label class="ai-provider-option">
+                            <input type="radio" name="ai-preferred-provider" value="gemini">
+                            <span class="ai-provider-option-body">
+                                <span class="ai-provider-option-title">Gemini</span>
+                                <span class="ai-provider-option-desc">Google — vision, PDF, multimodal</span>
+                            </span>
+                        </label>
+                        <label class="ai-provider-option">
+                            <input type="radio" name="ai-preferred-provider" value="deepseek">
+                            <span class="ai-provider-option-body">
+                                <span class="ai-provider-option-title">DeepSeek</span>
+                                <span class="ai-provider-option-desc">Fast, cost-efficient generation</span>
+                            </span>
+                        </label>
+                    </fieldset>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label for="ai-creativity" class="form-label-custom">Creativity</label>
+                            <input type="range" class="form-range" id="ai-creativity" min="0" max="1.2" step="0.1" value="0.7">
+                            <div class="d-flex justify-content-between small text-muted"><span>Precise</span><span id="ai-creativity-value">0.7</span><span>Creative</span></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ai-response-length" class="form-label-custom">Response length</label>
+                            <select id="ai-response-length" class="form-select form-control-custom">
+                                <option value="short">Short</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="long">Long</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ai-language" class="form-label-custom">Language</label>
+                            <select id="ai-language" class="form-select form-control-custom">
+                                <option value="en" selected>English</option>
+                                <option value="hi">Hindi</option>
+                                <option value="es">Spanish</option>
+                                <option value="fr">French</option>
+                                <option value="de">German</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <label class="settings-toggle-row w-100 mb-0 px-0">
+                                <div class="settings-toggle-info">
+                                    <h6 class="mb-0">Streaming</h6>
+                                    <p class="mb-0">Show tokens as they generate</p>
+                                </div>
+                                <span class="settings-switch">
+                                    <input type="checkbox" id="ai-streaming-enabled" checked>
+                                    <span class="settings-switch-slider"></span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-primary-custom" id="btn-save-ai-prefs">
+                            <i class="bi bi-check2 me-1"></i>Save AI Preferences
+                        </button>
+                        <span id="ai-prefs-feedback" class="small ms-2 text-muted" role="status"></span>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title"><i class="bi bi-shield-lock text-indigo"></i>Provider API Keys</h3>
+                        <p class="settings-card-desc">Gemini, OpenAI, Anthropic, and DeepSeek keys are configured only on the server via environment variables. Browser storage of API keys is disabled for security.</p>
+                    </div>
+                    <div class="alert alert-info mb-0 p-2.5 small" role="status">
+                        Ask your platform host to configure server-side API keys in the deployment environment. Keys are never accepted from the browser.
+                    </div>
+                </div>
+            </section>
+
+            <!-- NOTIFICATIONS -->
+            <section id="settings-section-notifications" class="settings-section" aria-label="Notifications">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title"><i class="bi bi-bell text-indigo"></i>Notification Preferences</h3>
+                        <p class="settings-card-desc">Choose what updates you receive and how.</p>
+                    </div>
+                    <div class="settings-toggle-list">
+                        <div class="settings-toggle-row">
+                            <div class="settings-toggle-info">
+                                <h6>Email notifications</h6>
+                                <p>Workspace creations and important account updates.</p>
+                            </div>
+                            <label class="settings-switch">
+                                <input type="checkbox" id="settings-notif-email" checked>
+                                <span class="settings-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-toggle-row">
+                            <div class="settings-toggle-info">
+                                <h6>Browser notifications</h6>
+                                <p>Real-time alerts while using Oplyra.</p>
+                            </div>
+                            <label class="settings-switch">
+                                <input type="checkbox" id="settings-notif-browser" checked>
+                                <span class="settings-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-toggle-row">
+                            <div class="settings-toggle-info">
+                                <h6>AI alerts</h6>
+                                <p>Generation complete and AI workflow status updates.</p>
+                            </div>
+                            <label class="settings-switch">
+                                <input type="checkbox" id="settings-notif-ai" checked>
+                                <span class="settings-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-toggle-row">
+                            <div class="settings-toggle-info">
+                                <h6>Task reminders</h6>
+                                <p>Due date reminders for campaign tasks.</p>
+                            </div>
+                            <label class="settings-switch">
+                                <input type="checkbox" id="settings-notif-tasks" checked>
+                                <span class="settings-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-toggle-row">
+                            <div class="settings-toggle-info">
+                                <h6>Weekly reports</h6>
+                                <p>Summary of content generated and token usage.</p>
+                            </div>
+                            <label class="settings-switch">
+                                <input type="checkbox" id="settings-notif-reports" checked>
+                                <span class="settings-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-toggle-row">
+                            <div class="settings-toggle-info">
+                                <h6>Product updates</h6>
+                                <p>News, features, and platform announcements.</p>
+                            </div>
+                            <label class="settings-switch">
+                                <input type="checkbox" id="settings-notif-updates" checked>
+                                <span class="settings-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- WORKSPACE -->
+            <section id="settings-section-workspace" class="settings-section" aria-label="Workspace">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title"><i class="bi bi-bar-chart text-teal"></i>Usage &amp; Limits</h3>
+                        <p class="settings-card-desc">Track your workspace and content quotas.</p>
+                    </div>
+                    <div class="settings-progress-item">
+                        <div class="settings-progress-header">
+                            <span>Workspace count</span>
+                            <span>{{ total_projects }} / 25</span>
+                        </div>
+                        <div class="settings-progress-track">
+                            {% set project_pct = (total_projects / 25 * 100) | round %}
+                        {% if project_pct > 100 %}{% set project_pct = 100 %}{% endif %}
+                        <div class="settings-progress-fill" style="width: {{ project_pct }}%;"></div>
+                        </div>
+                    </div>
+                    <div class="settings-progress-item">
+                        <div class="settings-progress-header">
+                            <span>AI copy count</span>
+                            <span>{{ total_contents }} / 100</span>
+                        </div>
+                        <div class="settings-progress-track">
+                            {% set content_pct = (total_contents / 100 * 100) | round %}
+                        {% if content_pct > 100 %}{% set content_pct = 100 %}{% endif %}
+                        <div class="settings-progress-fill is-teal" style="width: {{ content_pct }}%;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title">Connection Status</h3>
+                    </div>
+                    <ul class="list-unstyled mb-0 d-flex flex-column gap-2 small">
+                        <li class="d-flex justify-content-between text-secondary">
+                            <span>AI Engine (LLM)</span>
+                            <span class="text-success"><i class="bi bi-circle-fill me-1" style="font-size: 0.45rem;"></i>Active</span>
+                        </li>
+                        <li class="d-flex justify-content-between text-secondary">
+                            <span>Database (MySQL)</span>
+                            <span class="text-success"><i class="bi bi-circle-fill me-1" style="font-size: 0.45rem;"></i>Active</span>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- LOCALE -->
+            <section id="settings-section-locale" class="settings-section" aria-label="Language and region">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title"><i class="bi bi-globe2 text-indigo"></i>Language &amp; Region</h3>
+                        <p class="settings-card-desc">Set your preferred language and timezone.</p>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-field-group mb-0">
+                            <label for="settings-language" class="form-label-custom">Interface Language</label>
+                            <select class="form-select form-control-custom" id="settings-language">
+                                <option value="en" selected>English (United States)</option>
+                                <option value="es">Español (Spanish)</option>
+                                <option value="de">Deutsch (German)</option>
+                                <option value="fr">Français (French)</option>
+                            </select>
+                        </div>
+                        <div class="settings-field-group mb-0">
+                            <label for="settings-timezone" class="form-label-custom">Timezone</label>
+                            <select class="form-select form-control-custom" id="settings-timezone">
+                                <option value="UTC" selected>UTC (Coordinated Universal Time)</option>
+                                <option value="EST">EST (Eastern Standard Time)</option>
+                                <option value="PST">PST (Pacific Standard Time)</option>
+                                <option value="IST">IST (Indian Standard Time)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- INTEGRATIONS -->
+            <section id="settings-section-integrations" class="settings-section" aria-label="Integrations">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title"><i class="bi bi-plug text-indigo"></i>Connected Apps</h3>
+                        <p class="settings-card-desc">Link Google Search Console and GA4 for read-only sync. Manual import only — nothing auto-publishes.</p>
+                    </div>
+                    <a href="{{ url_for('integrations.connected_apps') }}" class="btn btn-indigo-custom">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Manage Connected Apps
+                    </a>
+                </div>
+                <div class="settings-card">
+                    <div class="settings-future-card mb-0">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="settings-card-title mb-0">Additional Integrations</span>
+                            <span class="settings-future-tag">Future-ready</span>
+                        </div>
+                        <p class="settings-card-desc mb-0">Slack, Zapier, and webhook integrations are planned for a future release.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- BILLING -->
+            <section id="settings-section-billing" class="settings-section" aria-label="Billing">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title"><i class="bi bi-credit-card text-indigo"></i>Subscription Plan</h3>
+                        <p class="settings-card-desc">Select your account tier. Changes apply to UI limits and badges.</p>
+                    </div>
+                    <div class="settings-field-group">
+                        <label for="settings-account-tier" class="form-label-custom">Current Plan</label>
+                        <select class="form-select form-control-custom" id="settings-account-tier">
+                            <option value="pro" selected>Pro Member Plan ($19/mo)</option>
+                            <option value="free">Free Creator Tier ($0/mo)</option>
+                            <option value="enterprise">Enterprise Custom Tier ($99/mo)</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-primary-custom btn-sm" data-bs-toggle="modal" data-bs-target="#stripeCheckoutModal">
+                        <i class="bi bi-arrow-up-circle me-1"></i>Upgrade Plan
+                    </button>
+                </div>
+                <div class="settings-card">
+                    <div class="settings-future-card mb-0">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="settings-card-title mb-0">Invoices &amp; Payment Methods</span>
+                            <span class="settings-future-tag">Placeholder</span>
+                        </div>
+                        <p class="settings-card-desc mb-0">Full billing portal with invoice history and payment method management coming soon.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PRIVACY -->
+            <section id="settings-section-privacy" class="settings-section" aria-label="Privacy and data">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title"><i class="bi bi-shield-check text-teal"></i>Privacy &amp; Data</h3>
+                        <p class="settings-card-desc">Control your data and account lifecycle.</p>
+                    </div>
+                    <div class="settings-info-banner mb-3">
+                        Your data is stored securely. Export and data portability features are planned for a future release.
+                    </div>
+                    <div class="settings-danger-card">
+                        <div>
+                            <h6>Delete Account</h6>
+                            <p>Permanently remove your profile and all associated projects.</p>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger btn-sm" id="btn-delete-account" onclick="return confirm('Are you sure you want to permanently delete your Oplyra profile? This cannot be undone.')">
+                            Delete Profile
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ADVANCED -->
+            <section id="settings-section-advanced" class="settings-section" aria-label="Advanced settings">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3 class="settings-card-title"><i class="bi bi-code-slash text-indigo"></i>Advanced</h3>
+                        <p class="settings-card-desc">Power-user and developer options.</p>
+                    </div>
+                    <div class="settings-future-grid">
+                        <div class="settings-future-card">
+                            <span class="settings-card-title d-block mb-1">Debug Mode</span>
+                            <p class="settings-card-desc mb-2">Enable verbose logging in the browser console.</p>
+                            <span class="settings-future-tag">Coming soon</span>
+                        </div>
+                        <div class="settings-future-card">
+                            <span class="settings-card-title d-block mb-1">API Access Tokens</span>
+                            <p class="settings-card-desc mb-2">Generate tokens for programmatic API access.</p>
+                            <span class="settings-future-tag">Coming soon</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sticky save bar -->
+            <div class="settings-footer-bar">
+                <button type="button" class="btn btn-secondary-custom" id="settings-reset-btn">Reset to Defaults</button>
+                <button type="button" class="btn btn-primary-custom" id="settings-save-btn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>

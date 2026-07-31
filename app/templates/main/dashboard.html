@@ -1,0 +1,2713 @@
+{% extends "base.html" %}
+
+{% block title %}Console Dashboard - Oplyra{% endblock %}
+
+{% block extra_head %}
+<!-- Tailwind kept for legacy panels (Tasks, Profile, Billing, etc.) — dashboard console uses dashboard.css -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+    tailwind.config = {
+        corePlugins: { preflight: false },
+        theme: {
+            extend: {
+                colors: {
+                    accentIndigo: '#6366f1',
+                    accentTeal: '#2dd4bf',
+                    accentWarning: '#f59e0b',
+                    darkBg: '#080c18',
+                    glassCard: 'rgba(15, 23, 42, 0.55)',
+                }
+            }
+        }
+    }
+</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<style>
+    /* Tab panel crossfade — only the incoming panel animates; outgoing hides instantly */
+    .tab-panel {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+        backface-visibility: hidden;
+    }
+    .tab-panel.tab-active {
+        position: relative;
+        z-index: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+    .tab-panel.tab-hidden {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        opacity: 0;
+        transform: translate3d(0, 8px, 0);
+        pointer-events: none;
+        visibility: hidden;
+        z-index: 0;
+    }
+    .tab-panel.tab-entering {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        opacity: 0;
+        transform: translate3d(0, 8px, 0);
+        z-index: 1;
+        pointer-events: none;
+        visibility: visible;
+        transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .tab-panel.tab-active:not(.tab-entering) {
+        transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .tab-panel { transition: none !important; }
+        .tab-panel.tab-hidden,
+        .tab-panel.tab-entering { transform: none; }
+    }
+
+    .page-content.is-panel-switching {
+        overflow-anchor: none;
+    }
+
+    /* SEO analyzer gauges */
+    .gauge-circle-small {
+        width: 44px;
+        height: 44px;
+        position: relative;
+    }
+    .gauge-circle-num {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: var(--text-caption);
+        font-weight: var(--font-weight-bold);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- RENDER METADATA TO JSON FOR CLIENT-SIDE JS PARSING -->
+<script id="recent-contents-data" type="application/json">
+[
+  {% set comma = joiner(",") %}
+  {% for project in recent_projects %}
+    {% for content in project.contents %}
+      {{ comma() }}
+      {
+        "id": {{ content.id }},
+        "title": {{ content.title|tojson }},
+        "type": {{ content.type|tojson }},
+        "body": {{ content.body|tojson }},
+        "prompt_used": {{ content.prompt_used|tojson }},
+        "date": "{{ content.generated_at.strftime('%Y-%m-%d %H:%M') }}",
+        "status": {{ content.status|tojson }},
+        "seo_score": {{ content.seo_analysis.seo_score if content.seo_analysis else "null" }},
+        "url": "/content/view/{{ content.id }}"
+      }
+    {% endfor %}
+  {% endfor %}
+]
+</script>
+
+<!-- RENDER PROJECTS DATA TO JSON FOR CLIENT-SIDE JS PARSING -->
+<script id="recent-projects-data" type="application/json">
+[
+  {% set comma = joiner(",") %}
+  {% for project in recent_projects %}
+    {{ comma() }}
+    {
+      "name": {{ project.name|tojson }},
+      "date": "{{ project.created_at.strftime('%Y-%m-%d %H:%M') }}"
+    }
+  {% endfor %}
+]
+</script>
+
+<!-- ==========================================
+     TAB 1: HIGH-DENSITY DASHBOARD VIEW 
+     ========================================== -->
+<div id="panel-dashboard" class="tab-panel tab-hidden">
+<div class="dash-console">
+
+    <header class="dash-header">
+        <div>
+            <h1 class="dash-header-title">Welcome back, {{ current_user.username }}</h1>
+            <p class="dash-header-sub"><span id="today-date-string">…</span></p>
+        </div>
+        <div class="dash-header-actions">
+            <button type="button" class="btn btn-primary-custom btn-sm" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+                <i class="bi bi-plus-circle me-1"></i>Create Task
+            </button>
+            <a href="{{ url_for('projects.projects_status') }}" class="btn btn-secondary-custom btn-sm">
+                <i class="bi bi-briefcase me-1"></i>New Client
+            </a>
+        </div>
+    </header>
+
+    <div class="dash-layout">
+        <div class="dash-main">
+
+            <section class="dash-card" aria-labelledby="dash-focus-heading">
+                <div class="dash-card-head">
+                    <h2 class="dash-card-title" id="dash-focus-heading">
+                        <i class="bi bi-bullseye" aria-hidden="true"></i>Today's Focus
+                    </h2>
+                    <span class="dash-chip dash-chip-accent">Decision support</span>
+                </div>
+
+                {% if today_focus %}
+                <div class="dash-focus">
+                    <div class="today-focus-main">
+                        <span class="dash-focus-kicker">Critical campaign</span>
+                        <h3 class="dash-focus-campaign">
+                            <a href="/campaigns/{{ today_focus.campaign_id }}/workspace">
+                                {{ today_focus.campaign_name }}
+                            </a>
+                        </h3>
+                        <div>
+                            <span class="dash-focus-action-label">Most important action</span>
+                            <h4 class="dash-focus-action">{{ today_focus.action }}</h4>
+                            <p class="dash-focus-reason">{{ today_focus.reason }}</p>
+                        </div>
+                        <div class="today-focus-cta">
+                            <a href="/campaigns/{{ today_focus.campaign_id }}/workspace" class="btn btn-indigo-custom btn-sm">
+                                <i class="bi bi-play-circle" aria-hidden="true"></i>
+                                <span>Execute Action</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="dash-focus-meta">
+                        <div>
+                            <span class="dash-meta-item-label">Estimated time</span>
+                            <span class="dash-meta-item-value is-accent"><i class="bi bi-stopwatch me-1" aria-hidden="true"></i>{{ today_focus.time_est }}</span>
+                        </div>
+                        <div>
+                            <span class="dash-meta-item-label">Upcoming deadline</span>
+                            <span class="dash-meta-item-value"><i class="bi bi-calendar-event me-1" aria-hidden="true"></i>{{ today_focus.deadline }}</span>
+                        </div>
+                        <div class="today-focus-health
+                            {% if today_focus.health == 'Critical' %}health-state-critical
+                            {% elif today_focus.health == 'Needs Attention' %}health-state-warning
+                            {% elif today_focus.health == 'Excellent' %}health-state-excellent
+                            {% else %}health-state-good{% endif %}">
+                            <span class="dash-meta-item-label">Campaign health</span>
+                            <div class="today-focus-health-pill">
+                                <i class="bi {% if today_focus.health == 'Critical' %}bi-shield-exclamation
+                                    {% elif today_focus.health == 'Needs Attention' %}bi-exclamation-triangle
+                                    {% elif today_focus.health == 'Excellent' %}bi-shield-check
+                                    {% else %}bi-heart-pulse{% endif %}" aria-hidden="true"></i>
+                                <span>{% if today_focus.health == 'Needs Attention' %}Warning{% else %}{{ today_focus.health }}{% endif %}</span>
+                            </div>
+                            <p class="today-focus-health-hint">
+                                {% if today_focus.health == 'Critical' %}Requires immediate intervention.
+                                {% elif today_focus.health == 'Needs Attention' %}Address open items soon.
+                                {% elif today_focus.health == 'Excellent' %}Performing strongly.
+                                {% else %}Steady progress — keep momentum.{% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <span class="dash-meta-item-label">Daily tasks progress</span>
+                            <span class="dash-meta-item-value">{{ today_focus.progress }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="dash-empty">
+                    <i class="bi bi-shield-check" aria-hidden="true"></i>
+                    <p class="dash-empty-title">Your focus is clear</p>
+                    <p class="dash-empty-text">Create client profiles and run active campaigns to populate Focus recommendations.</p>
+                </div>
+                {% endif %}
+            </section>
+
+            {% if reminders %}
+            <section class="dash-card" aria-labelledby="dash-reminders-heading">
+                <div class="dash-card-head">
+                    <h2 class="dash-card-title" id="dash-reminders-heading">
+                        <i class="bi bi-bell" aria-hidden="true"></i>Smart notifications
+                    </h2>
+                    <span class="dash-chip dash-chip-warn">Attention required</span>
+                </div>
+                <div class="dash-reminder-grid">
+                    {% for rem in reminders %}
+                    <article class="dash-reminder">
+                        <div class="dash-reminder-icon" aria-hidden="true"><i class="bi bi-exclamation-triangle"></i></div>
+                        <div>
+                            <span class="dash-reminder-campaign">{{ rem.campaign_name }}</span>
+                            <h3 class="dash-reminder-title">{{ rem.title }}</h3>
+                            <p class="dash-reminder-context">{{ rem.context }}</p>
+                            {% if rem.campaign_id %}
+                            <a href="/content/campaigns/{{ rem.campaign_id }}/workspace" class="btn btn-secondary-custom btn-sm">
+                                <i class="bi bi-arrow-right-short me-1"></i>Resolve Alert
+                            </a>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            <section class="dash-card" aria-labelledby="dash-tasks-heading">
+                <div class="dash-card-head">
+                    <h2 class="dash-card-title" id="dash-tasks-heading">
+                        <i class="bi bi-list-task" aria-hidden="true"></i>Task queue
+                    </h2>
+                </div>
+
+                <div id="dashboard-task-queue">
+                    {% set active_tasks_exist = (urgent_tasks|length > 0) or (today_tasks|length > 0) or (upcoming_tasks|length > 0) or (waiting_tasks|length > 0) %}
+
+                    {% if active_tasks_exist %}
+                        {% if urgent_tasks %}
+                        <div class="dash-task-group">
+                            <p class="dash-task-group-label is-urgent">High priority</p>
+                            <div class="dash-task-list">
+                                {% for task in urgent_tasks %}
+                                <div class="dash-task is-urgent" id="task-row-{{ task.id }}">
+                                    <input class="form-check-input task-complete-checkbox" type="checkbox" data-id="{{ task.id }}" id="dash-check-{{ task.id }}" aria-label="Complete {{ task.title }}">
+                                    <div class="dash-task-body">
+                                        <label for="dash-check-{{ task.id }}" class="dash-task-title">{{ task.title }}</label>
+                                        <p class="dash-task-desc">{{ task.description or 'No description provided.' }}</p>
+                                        <span class="dash-task-tag"><i class="bi bi-megaphone" aria-hidden="true"></i>{{ task.campaign.name if task.campaign else 'General' }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if today_tasks %}
+                        <div class="dash-task-group">
+                            <p class="dash-task-group-label is-medium">Medium priority</p>
+                            <div class="dash-task-list">
+                                {% for task in today_tasks %}
+                                <div class="dash-task is-medium" id="task-row-{{ task.id }}">
+                                    <input class="form-check-input task-complete-checkbox" type="checkbox" data-id="{{ task.id }}" id="dash-check-{{ task.id }}" aria-label="Complete {{ task.title }}">
+                                    <div class="dash-task-body">
+                                        <label for="dash-check-{{ task.id }}" class="dash-task-title">{{ task.title }}</label>
+                                        <p class="dash-task-desc">{{ task.description or 'No description.' }}</p>
+                                        <span class="dash-task-tag"><i class="bi bi-megaphone" aria-hidden="true"></i>{{ task.campaign.name if task.campaign else 'General' }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if upcoming_tasks or waiting_tasks %}
+                        <div class="dash-task-group">
+                            <p class="dash-task-group-label">Low priority</p>
+                            <div class="dash-task-list">
+                                {% for task in upcoming_tasks + waiting_tasks %}
+                                <div class="dash-task is-low" id="task-row-{{ task.id }}">
+                                    <input class="form-check-input task-complete-checkbox" type="checkbox" data-id="{{ task.id }}" id="dash-check-{{ task.id }}" aria-label="Complete {{ task.title }}">
+                                    <div class="dash-task-body">
+                                        <label for="dash-check-{{ task.id }}" class="dash-task-title">{{ task.title }}</label>
+                                        <span class="dash-task-tag"><i class="bi bi-megaphone" aria-hidden="true"></i>{{ task.campaign.name if task.campaign else 'General' }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="dash-empty" style="padding: 2rem 1rem;">
+                            <p class="dash-empty-text">No active campaign tasks pending in your workspace.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+
+        <aside class="dash-rail" aria-label="Dashboard overview">
+
+            <section class="dash-card">
+                <div class="dash-card-head">
+                    <h2 class="dash-card-title"><i class="bi bi-pie-chart" aria-hidden="true"></i>Weekly intelligence</h2>
+                </div>
+                {% if weekly_intelligence %}
+                <div class="dash-stat-grid">
+                    <div class="dash-stat">
+                        <span class="dash-stat-value">{{ weekly_intelligence.completed_campaigns }}</span>
+                        <span class="dash-stat-label">Completed</span>
+                    </div>
+                    <div class="dash-stat">
+                        <span class="dash-stat-value">{{ weekly_intelligence.finished_tasks }}</span>
+                        <span class="dash-stat-label">Tasks done</span>
+                    </div>
+                    <div class="dash-stat">
+                        <span class="dash-stat-value">{{ weekly_intelligence.delivered_reports }}</span>
+                        <span class="dash-stat-label">Reports sent</span>
+                    </div>
+                    <div class="dash-stat">
+                        <span class="dash-stat-value is-danger">{{ weekly_intelligence.risk_count }}</span>
+                        <span class="dash-stat-label">At risk</span>
+                    </div>
+                </div>
+                <p class="dash-takeaways-label"><i class="bi bi-lightbulb" aria-hidden="true"></i>Weekly takeaways</p>
+                <ul class="dash-takeaways">
+                    {% for rec in weekly_intelligence.recommendations %}
+                    <li>{{ rec }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="dash-rail-empty">Weekly summary will appear as you run campaigns.</p>
+                {% endif %}
+            </section>
+
+            <section class="dash-card">
+                <div class="dash-card-head">
+                    <h2 class="dash-card-title"><i class="bi bi-clock-history" aria-hidden="true"></i>Upcoming deadlines</h2>
+                </div>
+                <div class="dash-list">
+                    {% if upcoming_deadlines %}
+                        {% for task in upcoming_deadlines %}
+                        <div class="dash-list-row">
+                            <span class="dash-list-name" title="{{ task.title }}">{{ task.title }}</span>
+                            <span class="dash-list-meta">{{ task.due_date.strftime('%b %d') if task.due_date else '—' }}</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="dash-rail-empty">No upcoming task deadlines.</p>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="dash-card">
+                <div class="dash-card-head">
+                    <h2 class="dash-card-title"><i class="bi bi-megaphone" aria-hidden="true"></i>Recent campaigns</h2>
+                </div>
+                <div class="dash-list">
+                    {% if recent_campaigns %}
+                        {% for campaign in recent_campaigns %}
+                        <div class="dash-list-row">
+                            <span class="dash-list-name" title="{{ campaign.name }}">{{ campaign.name }}</span>
+                            <span class="dash-status">{{ campaign.status }}</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="dash-rail-empty">No campaigns active. <a href="{{ url_for('content.campaigns_view') }}">Start campaign</a></p>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="dash-card">
+                <div class="dash-card-head">
+                    <h2 class="dash-card-title"><i class="bi bi-file-earmark-bar-graph" aria-hidden="true"></i>Recent reports</h2>
+                </div>
+                <div class="dash-list">
+                    {% if pending_reports %}
+                        {% for report in pending_reports %}
+                        <div class="dash-list-row">
+                            <span class="dash-list-name" title="{{ report.title }}">{{ report.title }}</span>
+                            <span class="dash-list-meta"><a href="/api/reports/export/{{ report.id }}"><i class="bi bi-download me-1" aria-hidden="true"></i>PDF</a></span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="dash-rail-empty">No client reports compiled.</p>
+                    {% endif %}
+                </div>
+            </section>
+        </aside>
+    </div>
+</div>
+
+    <!-- FLOATING QUICK ACTION BUTTON (FAB) -->
+    <button type="button" class="dashboard-fab-trigger" id="dashboardFabTriggerBtn" onclick="toggleFabMenu()" aria-label="Quick actions">
+        <i class="bi bi-lightning-fill" aria-hidden="true"></i>
+    </button>
+    <div class="dashboard-fab-menu" id="dashboardFabMenuContainer">
+        <a href="{{ url_for('content.content_status') }}?type=blog" class="dashboard-fab-item" title="Quick Blog Copy"><i class="bi bi-journal-richtext text-teal"></i></a>
+        <a href="{{ url_for('content.content_status') }}?type=email" class="dashboard-fab-item" title="Quick Email Copy"><i class="bi bi-envelope text-indigo"></i></a>
+        <a href="{{ url_for('content.content_status') }}?type=facebook_post" class="dashboard-fab-item" title="Quick Facebook Post"><i class="bi bi-facebook text-primary"></i></a>
+        <a href="#seo-analyzer" class="dashboard-fab-item" onclick="toggleFabMenu(); window.location.hash='#seo-analyzer';" title="Quick SEO Check"><i class="bi bi-search-heart text-warning"></i></a>
+    </div>
+</div>
+
+<!-- ==========================================
+     TAB 5: TASKS LISTING VIEW
+     ========================================== -->
+<div id="panel-tasks" class="tab-panel tab-hidden">
+    <div class="page-header">
+        <div>
+            <h2 class="page-header-title"><i class="bi bi-check2-square text-indigo me-2"></i>My Tasks</h2>
+            <p class="page-header-subtitle">Organize, execute, and track tasks across your clients and campaigns.</p>
+        </div>
+        <button class="btn btn-primary-custom btn-sm" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+            <i class="bi bi-plus-circle me-1"></i>Create Task
+        </button>
+    </div>
+
+    <!-- Filter + Search Toolbar -->
+    <div class="tasks-toolbar glass-card">
+        <div class="tasks-filter-group" role="group" aria-label="Filter tasks by status">
+            <button class="task-filter-btn active" data-filter="all" aria-pressed="true">All <span class="task-filter-count" data-count="all">0</span></button>
+            <button class="task-filter-btn" data-filter="pending" aria-pressed="false">Pending <span class="task-filter-count" data-count="pending">0</span></button>
+            <button class="task-filter-btn" data-filter="completed" aria-pressed="false">Completed <span class="task-filter-count" data-count="completed">0</span></button>
+            <button class="task-filter-btn" data-filter="archived" aria-pressed="false">Archived <span class="task-filter-count" data-count="archived">0</span></button>
+        </div>
+        <div class="tasks-search">
+            <i class="bi bi-search"></i>
+            <input type="text" id="task-search-input" class="form-control form-control-custom" placeholder="Search tasks..." aria-label="Search tasks">
+        </div>
+    </div>
+
+    <!-- Tasks List -->
+    <div id="tasks-list" class="tasks-list">
+        {% for task in urgent_tasks + today_tasks + upcoming_tasks + waiting_tasks + completed_tasks %}
+        <article class="task-card task-table-row"
+                 data-status="{{ 'completed' if task.status == 'completed' else 'pending' }}"
+                 data-archived="{{ 'true' if task.is_archived else 'false' }}"
+                 data-priority="{{ task.priority }}"
+                 data-title="{{ task.title | lower }}"
+                 data-desc="{{ (task.description or '') | lower }}">
+            <label class="task-card-check">
+                <input class="form-check-input task-complete-checkbox" type="checkbox" data-id="{{ task.id }}"
+                       {% if task.status == 'completed' %}checked{% endif %}
+                       aria-label="Mark task '{{ task.title }}' as complete">
+            </label>
+            <div class="task-card-body">
+                <div class="task-card-titlerow">
+                    <span class="task-card-title font-semibold">{{ task.title }}</span>
+                    <span class="task-priority-badge priority-{{ task.priority }}">{{ task.priority }}</span>
+                </div>
+                {% if task.description %}
+                <p class="task-card-desc text-slate-400">{{ task.description }}</p>
+                {% endif %}
+                <div class="task-card-meta">
+                    {% if task.project %}
+                    <span class="task-meta-chip"><i class="bi bi-briefcase"></i>{{ task.project.name }}</span>
+                    {% endif %}
+                    {% if task.campaign %}
+                    <span class="task-meta-chip chip-indigo"><i class="bi bi-megaphone"></i>{{ task.campaign.name }}</span>
+                    {% endif %}
+                    <span class="task-meta-chip"><i class="bi bi-calendar-event"></i>{{ task.due_date.strftime('%b %d, %Y') if task.due_date else 'No due date' }}</span>
+                </div>
+            </div>
+            <div class="task-card-actions">
+                <button class="task-action-btn" onclick="archiveTask({{ task.id }})" title="Archive task" aria-label="Archive task '{{ task.title }}'">
+                    <i class="bi bi-archive"></i>
+                </button>
+            </div>
+        </article>
+        {% endfor %}
+
+        <!-- Empty state (shown when no tasks match filter/search) -->
+        <div id="tasks-empty-state" class="empty-state glass-card" style="display: none;">
+            {% include 'partials/_empty_state_brand.html' %}
+            <i class="bi bi-clipboard-check empty-state-icon"></i>
+            <p class="empty-state-title">No tasks found</p>
+            <p class="empty-state-text">Nothing matches your current filter or search. Create a task to plan your day.</p>
+            <button class="btn btn-primary-custom btn-sm" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+                <i class="bi bi-plus-circle me-1"></i>Create Task
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     TAB 6: REPORTS COMPILING VIEW
+     ========================================== -->
+<div id="panel-reports" class="tab-panel tab-hidden">
+    <div class="mb-4 d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="text-white mb-1"><i class="bi bi-file-earmark-bar-graph text-indigo me-2"></i>Client Reports</h2>
+            <p class="text-slate-400 mb-0 text-xs">Generate and export premium PDF performance summaries for client review.</p>
+        </div>
+        <button class="btn btn-primary-custom btn-sm py-1.5 px-3" data-bs-toggle="modal" data-bs-target="#createReportModal">
+            <i class="bi bi-file-earmark-plus me-1"></i>Compile Report
+        </button>
+    </div>
+
+    <!-- Reports listing -->
+    <div class="glass-card p-4">
+        <div class="row g-3" id="reports-grid-container">
+            {% if pending_reports %}
+                {% for report in pending_reports %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="glass-card p-3 d-flex flex-column justify-content-between h-100 hover-primary transition-all">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="text-slate-500 font-mono text-[9px]">Compiled: {{ report.created_at.strftime('%Y-%m-%d') }}</span>
+                                    <span class="badge bg-teal bg-opacity-15 text-teal text-[8px] px-2 py-0.5 rounded">Completed</span>
+                                </div>
+                                <h5 class="text-white text-xs font-bold mb-2">{{ report.title }}</h5>
+                                <p class="text-slate-400 text-[10px] mb-3 leading-relaxed text-truncate-3" style="max-height: 50px; overflow: hidden;">
+                                    This report contains detailed metrics and task checklists completed for client campaigns.
+                                </p>
+                            </div>
+                            <div class="border-top border-slate-800 pt-2 d-flex justify-content-between align-items-center">
+                                <span class="text-[9px] text-slate-500"><i class="bi bi-paperclip me-1"></i>Report #{{ report.id }}</span>
+                                <a href="/api/reports/export/{{ report.id }}" class="btn btn-indigo-custom btn-xs py-1 px-2.5 text-[9px]"><i class="bi bi-download me-1"></i>Download PDF</a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12 text-center py-5 text-muted">
+                    <i class="bi bi-file-earmark-bar-graph display-5 mb-3 d-block text-slate-700"></i>
+                    <h6 class="text-white">No reports found</h6>
+                    <p class="text-slate-500 text-xs">Create your first client performance report to export styled PDFs.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     TAB 2: REAL-TIME SEO ANALYZER VIEW 
+     ========================================== -->
+<div id="panel-seo-analyzer" class="tab-panel tab-hidden">
+    <div class="mb-4">
+        <h2 class="text-white mb-1"><i class="bi bi-search-heart text-indigo me-2"></i>SEO Optimization Engine</h2>
+        <p class="text-secondary mb-0" style="font-size: 0.8rem;">Audit keyword usage, paragraph layout structures, and readability ease scores on the fly.</p>
+    </div>
+
+    <div class="row g-3">
+        <!-- Input pane -->
+        <div class="col-lg-7">
+            <div class="glass-card p-3 h-100">
+                <h5 class="text-white mb-3">Auditor Parameters</h5>
+                <div class="mb-3">
+                    <label for="seo-input-title" class="form-label-custom">Content Copy Title *</label>
+                    <input type="text" id="seo-input-title" class="form-control form-control-custom" placeholder="e.g., Best ASUS ROG Laptops 2026">
+                </div>
+                <div class="mb-3">
+                    <label for="seo-input-keywords" class="form-label-custom">Target Keywords (Comma Separated)</label>
+                    <input type="text" id="seo-input-keywords" class="form-control form-control-custom" placeholder="e.g., asus rog, gaming, best laptop">
+                </div>
+                <div class="mb-3">
+                    <label for="seo-input-body" class="form-label-custom">Copy Text Body (Markdown) *</label>
+                    <textarea id="seo-input-body" rows="11" class="form-control form-control-custom font-monospace" placeholder="Paste your markdown copy to check heading markers (## or ###) and target word densities..."></textarea>
+                </div>
+                <button type="button" id="seo-run-btn" class="btn btn-primary-custom w-100 py-2">
+                    <i class="bi bi-lightning-charge-fill me-1 text-warning"></i>Analyze SEO Scorecard
+                </button>
+            </div>
+        </div>
+
+        <!-- Scorecard Pane -->
+        <div class="col-lg-5">
+            <div class="glass-card p-3 h-100" id="seo-results-panel">
+                <div class="text-center py-5 text-secondary" id="seo-empty-state">
+                    <i class="bi bi-bar-chart-line display-2 text-muted mb-2"></i>
+                    <h6>Analysis Output Pane</h6>
+                    <p class="small text-muted mb-0">Fill the copy and keyword metrics on the left, then trigger 'Analyze' to run formulas.</p>
+                </div>
+
+                <!-- Score Data details -->
+                <div class="d-none" id="seo-results-data">
+                    <h5 class="text-white mb-3">Audit Scorecard</h5>
+                    <div class="row align-items-center mb-3">
+                        <div class="col-6 text-center border-end border-secondary" style="border-color: rgba(255,255,255,0.05) !important;">
+                            <div class="gauge-circle-small mx-auto">
+                                <canvas id="seoScoreCanvas" width="44" height="44"></canvas>
+                                <div class="gauge-circle-num text-white" id="seo-score-num">0</div>
+                            </div>
+                            <span class="small text-muted d-block mt-1 font-weight-bold" style="font-size: 0.65rem;">SEO SCORE</span>
+                        </div>
+                        <div class="col-6 text-center">
+                            <div class="gauge-circle-small mx-auto">
+                                <canvas id="readabilityScoreCanvas" width="44" height="44"></canvas>
+                                <div class="gauge-circle-num text-teal" id="seo-readability-num">0</div>
+                            </div>
+                            <span class="small text-muted d-block mt-1 font-weight-bold" style="font-size: 0.65rem;">READABILITY</span>
+                        </div>
+                    </div>
+
+                    <!-- Statistics grid -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="bg-black bg-opacity-35 p-2 rounded-3 text-center">
+                                <div class="small text-muted" style="font-size: 0.65rem;">Total Words</div>
+                                <div class="fw-bold text-white small" id="seo-word-count">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-black bg-opacity-35 p-2 rounded-3 text-center">
+                                <div class="small text-muted" style="font-size: 0.65rem;">Headings (H2/H3)</div>
+                                <div class="fw-bold text-white small" id="seo-headings-count">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Keywords table -->
+                    <h6 class="text-white mb-1.5" style="font-size: 0.8rem;"><i class="bi bi-key-fill text-teal me-1.5"></i>Keyword Density</h6>
+                    <div class="table-responsive mb-3" style="max-height: 120px; overflow-y: auto;">
+                        <table class="table table-custom table-sm mb-0" style="font-size: 0.75rem;">
+                            <thead>
+                                <tr>
+                                    <th>Keyword</th>
+                                    <th>Count</th>
+                                    <th>Density</th>
+                                    <th class="text-end">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="seo-keywords-table-body">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Suggestions list -->
+                    <h6 class="text-white mb-1.5" style="font-size: 0.8rem;"><i class="bi bi-patch-check-fill text-indigo me-1.5"></i>Improvement Checklist</h6>
+                    <div class="bg-black bg-opacity-20 rounded-3 p-2.5" style="max-height: 120px; overflow-y: auto;">
+                        <ul class="list-unstyled mb-0 d-flex flex-column gap-1.5" id="seo-suggestions-list">
+                            <!-- Populated dynamically -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     TAB 3: DETAILED ANALYTICS VIEW 
+     ========================================== -->
+<div id="panel-analytics" class="tab-panel tab-hidden">
+    <div class="dash-analytics-header">
+        <h2>Performance Analytics</h2>
+        <p>Content distribution, activity trends, and token utilization from your workspace.</p>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="dash-chart-card d-flex flex-column">
+                <h5>Content formats</h5>
+                <div class="flex-grow-1 d-flex align-items-center justify-content-center" style="position: relative; min-height: 240px;">
+                    <canvas id="contentTypeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="dash-chart-card d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <h5 class="mb-0">Consumption over time</h5>
+                    <div class="btn-group" role="group" aria-label="Timeframe toggle">
+                        <button type="button" class="btn btn-outline-secondary-custom active py-1 px-3" id="analyticsBtnWeekly">Weekly</button>
+                        <button type="button" class="btn btn-outline-secondary-custom py-1 px-3" id="analyticsBtnMonthly">Monthly</button>
+                    </div>
+                </div>
+                <div class="row flex-grow-1">
+                    <div class="col-md-6 mb-3 mb-md-0 d-flex flex-column">
+                        <div class="text-caption text-center mb-2" style="color: hsl(var(--text-muted)); font-size: var(--text-caption);">Assets drafted</div>
+                        <div class="flex-grow-1" style="position: relative; min-height: 200px;">
+                            <canvas id="activityChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6 d-flex flex-column">
+                        <div class="text-center mb-2" style="color: hsl(var(--text-muted)); font-size: var(--text-caption);">Estimated tokens</div>
+                        <div class="flex-grow-1" style="position: relative; min-height: 200px;">
+                            <canvas id="tokensChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     TAB 4: SETTINGS HUB
+     ========================================== -->
+{% include 'main/_settings_panel.html' %}
+{% include 'main/_agents_panel.html' %}
+{% include 'main/_knowledge_panel.html' %}
+{% include 'main/_files_panel.html' %}
+{# Tools panel kept for deep links / admin — not in user sidebar #}
+{% include 'main/_tools_panel.html' %}
+
+<!-- ==========================================
+     TAB 5: PROFILE VIEW PAGE 
+     ========================================== -->
+<div id="panel-profile" class="tab-panel tab-hidden">
+    <div class="mb-4">
+        <h2 class="text-white mb-1"><i class="bi bi-person-badge text-indigo me-2"></i>My Profile</h2>
+        <p class="text-secondary mb-0" style="font-size: 0.8rem;">Profile details, platform stats, and workspace metrics.</p>
+    </div>
+
+    <div class="row g-3">
+        <!-- Left Column: User details -->
+        <div class="col-lg-4">
+            <div class="glass-card text-center p-4">
+                <div class="user-avatar mx-auto mb-3" style="width: 72px; height: 72px; font-size: 2.2rem; font-weight: 700;">
+                    {{ current_user.username[0] | upper if current_user.username else 'U' }}
+                </div>
+                <h4 class="text-white mb-1 h5" id="profile-card-username">{{ current_user.username }}</h4>
+                <span class="badge bg-indigo-subtle text-indigo mb-3 px-3 py-1 rounded-pill small" id="profile-card-plan" style="background-color: rgba(99,102,241,0.15); color: #818cf8; font-weight: 600;">PRO MEMBER</span>
+                
+                <hr style="border-color: hsl(var(--border-subtle));">
+                
+                <table class="table table-sm table-borderless text-secondary text-start mb-0" style="font-size: 0.775rem;">
+                    <tbody>
+                        <tr>
+                            <td class="ps-0 font-weight-bold">Primary Email:</td>
+                            <td class="pe-0 text-white text-end text-truncate" style="max-width: 140px;">{{ current_user.email }}</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-0 font-weight-bold">Joined Date:</td>
+                            <td class="pe-0 text-white text-end">{{ current_user.created_at.strftime('%Y-%m-%d') }}</td>
+                        </tr>
+                        <tr>
+                            <td class="ps-0 font-weight-bold">Tier Limit:</td>
+                            <td class="pe-0 text-teal text-end">Unlimited Prompts</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Right Column: User Analytics Stats -->
+        <div class="col-lg-8">
+            <div class="glass-card p-4">
+                <h5 class="text-white mb-4"><i class="bi bi-activity text-teal me-2"></i>Performance Statistics</h5>
+                
+                <!-- Stat block rows -->
+                <div class="row g-3 mb-4">
+                    <div class="col-sm-4">
+                        <div class="profile-stat-box">
+                            <div class="profile-stat-num text-white">{{ total_projects }}</div>
+                            <div class="profile-stat-lbl">Workspaces Owned</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="profile-stat-box">
+                            <div class="profile-stat-num text-white">{{ total_contents }}</div>
+                            <div class="profile-stat-lbl">Content Generated</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="profile-stat-box">
+                            <div class="profile-stat-num text-warning" id="profile-avg-seo-score">0</div>
+                            <div class="profile-stat-lbl">Avg SEO Score</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h5 class="text-white mb-3"><i class="bi bi-clock-history text-indigo me-2"></i>Recent Log Activities</h5>
+                <div class="bg-black bg-opacity-25 rounded-3 p-3">
+                    <ul class="list-unstyled mb-0 d-flex flex-column gap-2.5" style="font-size: 0.775rem;">
+                        <li class="d-flex justify-content-between align-items-center text-secondary border-bottom pb-2" style="border-color: rgba(255,255,255,0.04) !important;">
+                            <span><i class="bi bi-person-check-fill text-indigo me-2"></i>Session initialized securely</span>
+                            <span class="text-muted">Today</span>
+                        </li>
+                        <li class="d-flex justify-content-between align-items-center text-secondary border-bottom pb-2" style="border-color: rgba(255,255,255,0.04) !important;">
+                            <span><i class="bi bi-cpu-fill text-teal me-2"></i>AI prompt response received</span>
+                            <span class="text-muted">2 mins ago</span>
+                        </li>
+                        <li class="d-flex justify-content-between align-items-center text-secondary">
+                            <span><i class="bi bi-shield-fill-check text-warning me-2"></i>SEO audits scorecard updated</span>
+                            <span class="text-muted">3 mins ago</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     TAB 6: AI CONTENT TEMPLATES VIEW
+     ========================================== -->
+<div id="panel-templates" class="tab-panel tab-hidden">
+    <div class="mb-4">
+        <h2 class="text-white mb-1"><i class="bi bi-layout-text-window-reverse text-indigo me-2"></i>AI Content Templates</h2>
+        <p class="text-secondary mb-0" style="font-size: 0.8rem;">Select from pre-engineered copywriting structures for higher search intent and conversion.</p>
+    </div>
+    
+    <div class="row g-3">
+        <!-- Template Card 1 -->
+        <div class="col-md-6 col-lg-3">
+            <div class="glass-card p-3 h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="fs-3 text-indigo mb-2"><i class="bi bi-star-fill"></i></div>
+                    <h5 class="text-white font-weight-bold" style="font-size: 0.95rem;">High-Intent Product Review</h5>
+                    <p class="text-secondary small mb-3" style="font-size: 0.75rem; line-height: 1.45;">Designed to convert buying traffic. Focuses on honest feature analyses, pros and cons comparison lists, and pricing value metrics.</p>
+                </div>
+                <a href="{{ url_for('content.content_status') }}?type=product_review&template=high-intent" class="btn btn-secondary-custom btn-sm py-1.5 w-100 text-indigo font-weight-bold" style="font-size: 0.725rem;">
+                    Use Template
+                </a>
+            </div>
+        </div>
+        <!-- Template Card 2 -->
+        <div class="col-md-6 col-lg-3">
+            <div class="glass-card p-3 h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="fs-3 text-teal mb-2"><i class="bi bi-journal-richtext"></i></div>
+                    <h5 class="text-white font-weight-bold" style="font-size: 0.95rem;">Step-by-Step Educational Tutorial</h5>
+                    <p class="text-secondary small mb-3" style="font-size: 0.75rem; line-height: 1.45;">Perfect for teaching beginners. Structures your copy with clean headings (H2/H3), step-by-step layout flow, and target summary charts.</p>
+                </div>
+                <a href="{{ url_for('content.content_status') }}?type=blog&template=educational" class="btn btn-secondary-custom btn-sm py-1.5 w-100 text-teal font-weight-bold" style="font-size: 0.725rem;">
+                    Use Template
+                </a>
+            </div>
+        </div>
+        <!-- Template Card 3 -->
+        <div class="col-md-6 col-lg-3">
+            <div class="glass-card p-3 h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="fs-3 text-warning mb-2"><i class="bi bi-envelope-open-fill"></i></div>
+                    <h5 class="text-white font-weight-bold" style="font-size: 0.95rem;">Product Announcement Newsletter</h5>
+                    <p class="text-secondary small mb-3" style="font-size: 0.75rem; line-height: 1.45;">Keep subscribers engaged. Standard friendly layout designed to highlight wireless upgrades, discount coupon links, and value checkouts.</p>
+                </div>
+                <a href="{{ url_for('content.content_status') }}?type=email&template=newsletter" class="btn btn-secondary-custom btn-sm py-1.5 w-100 text-warning font-weight-bold" style="font-size: 0.725rem;">
+                    Use Template
+                </a>
+            </div>
+        </div>
+        <!-- Template Card 4 -->
+        <div class="col-md-6 col-lg-3">
+            <div class="glass-card p-3 h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="fs-3 text-sunset mb-2" style="color: #f97316;"><i class="bi bi-facebook"></i></div>
+                    <h5 class="text-white font-weight-bold" style="font-size: 0.95rem;">Social Media Launch Teaser</h5>
+                    <p class="text-secondary small mb-3" style="font-size: 0.75rem; line-height: 1.45;">High energy post to capture attention. Includes emoji recommendations, tag lists, and strong call-to-actions to direct traffic.</p>
+                </div>
+                <a href="{{ url_for('content.content_status') }}?type=facebook_post&template=social-teaser" class="btn btn-secondary-custom btn-sm py-1.5 w-100 text-sunset font-weight-bold" style="font-size: 0.725rem; color: #f97316;">
+                    Use Template
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     TAB 7: BILLING & SUBSCRIPTIONS VIEW
+     ========================================== -->
+<div id="panel-billing" class="tab-panel tab-hidden">
+    <div class="mb-4">
+        <h2 class="text-white mb-1"><i class="bi bi-credit-card-2-front text-teal me-2"></i>Billing & Subscriptions</h2>
+        <p class="text-secondary mb-0" style="font-size: 0.8rem;">Select your creator plan tier, check invoice logs, and modify Stripe configurations.</p>
+    </div>
+    
+    <div class="row g-3 mb-4">
+        <!-- Plan 1: Free -->
+        <div class="col-lg-4">
+            <div class="glass-card p-3 h-100 d-flex flex-column justify-content-between border-secondary border-opacity-10">
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold text-white fs-6">Free Creator</span>
+                        <span class="badge bg-secondary-subtle text-secondary small px-2.5 py-0.5 rounded-pill" id="billing-free-badge">Basic</span>
+                    </div>
+                    <div class="mb-3">
+                        <span class="fs-3 text-white fw-bold">$0</span>
+                        <span class="text-muted small">/ month</span>
+                    </div>
+                    <ul class="list-unstyled text-secondary small d-flex flex-column gap-2 mb-4" style="font-size: 0.75rem;">
+                        <li><i class="bi bi-check2 text-teal me-1.5"></i>Generate up to 10 copies</li>
+                        <li><i class="bi bi-check2 text-teal me-1.5"></i>3 Workspace Campaigns</li>
+                        <li><i class="bi bi-check2 text-teal me-1.5"></i>Standard AI access</li>
+                        <li class="text-muted"><i class="bi bi-x text-danger me-1.5"></i>No custom API keys</li>
+                        <li class="text-muted"><i class="bi bi-x text-danger me-1.5"></i>PDF exports disabled</li>
+                    </ul>
+                </div>
+                <button type="button" class="btn btn-secondary-custom btn-sm py-1.5 w-100" id="billing-free-btn" onclick="upgradeSubscriptionTier('free')">
+                    Select Free Tier
+                </button>
+            </div>
+        </div>
+        <!-- Plan 2: Pro -->
+        <div class="col-lg-4">
+            <div class="glass-card p-3 h-100 d-flex flex-column justify-content-between border-indigo" style="border-width: 1.5px;">
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold text-white fs-6">Pro Member</span>
+                        <span class="badge bg-indigo-subtle text-indigo small px-2.5 py-0.5 rounded-pill" style="background-color: rgba(99,102,241,0.15); color: #818cf8;">Popular</span>
+                    </div>
+                    <div class="mb-3">
+                        <span class="fs-3 text-white fw-bold">$19</span>
+                        <span class="text-muted small">/ month</span>
+                    </div>
+                    <ul class="list-unstyled text-secondary small d-flex flex-column gap-2 mb-4" style="font-size: 0.75rem;">
+                        <li><i class="bi bi-check2 text-indigo me-1.5"></i>Generate up to 100 copies</li>
+                        <li><i class="bi bi-check2 text-indigo me-1.5"></i>25 Workspace Campaigns</li>
+                        <li><i class="bi bi-check2 text-indigo me-1.5"></i>High priority LLM response</li>
+                        <li><i class="bi bi-check2 text-indigo me-1.5"></i>Save custom AI API key</li>
+                        <li><i class="bi bi-check2 text-indigo me-1.5"></i>PDF downloads enabled</li>
+                    </ul>
+                </div>
+                <button type="button" class="btn btn-primary-custom btn-sm py-1.5 w-100" id="billing-pro-btn" data-bs-toggle="modal" data-bs-target="#stripeCheckoutModal" onclick="setCheckoutTier('pro')">
+                    Select Pro Member
+                </button>
+            </div>
+        </div>
+        <!-- Plan 3: Enterprise -->
+        <div class="col-lg-4">
+            <div class="glass-card p-3 h-100 d-flex flex-column justify-content-between border-secondary border-opacity-10">
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold text-white fs-6">Enterprise Custom</span>
+                        <span class="badge bg-teal-subtle text-teal small px-2.5 py-0.5 rounded-pill" style="background-color: rgba(45,212,191,0.15); color: #2dd4bf;">Scale</span>
+                    </div>
+                    <div class="mb-3">
+                        <span class="fs-3 text-white fw-bold">$99</span>
+                        <span class="text-muted small">/ month</span>
+                    </div>
+                    <ul class="list-unstyled text-secondary small d-flex flex-column gap-2 mb-4" style="font-size: 0.75rem;">
+                        <li><i class="bi bi-check2 text-teal me-1.5"></i>Unlimited copy generations</li>
+                        <li><i class="bi bi-check2 text-teal me-1.5"></i>Unlimited campaigns</li>
+                        <li><i class="bi bi-check2 text-teal me-1.5"></i>Dedicated API bandwidth</li>
+                        <li><i class="bi bi-check2 text-teal me-1.5"></i>Dedicated support queue</li>
+                        <li><i class="bi bi-check2 text-teal me-1.5"></i>Advanced team collaboration</li>
+                    </ul>
+                </div>
+                <button type="button" class="btn btn-secondary-custom btn-sm py-1.5 w-100" id="billing-enterprise-btn" data-bs-toggle="modal" data-bs-target="#stripeCheckoutModal" onclick="setCheckoutTier('enterprise')">
+                    Select Enterprise
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Billing History Invoice Table -->
+    <h5 class="text-white mb-2.5"><i class="bi bi-clock-history me-2 text-indigo"></i>Invoice Logs & Billing History</h5>
+    <div class="glass-card p-3">
+        <div class="table-responsive">
+            <table class="table table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th>Invoice ID</th>
+                        <th>Billing Period</th>
+                        <th>Paid Amount</th>
+                        <th>Status</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="text-white font-monospace">INV-2026-006</td>
+                        <td class="text-secondary small">Jun 01, 2026 - Jun 30, 2026</td>
+                        <td class="text-white">$19.00</td>
+                        <td><span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25" style="font-size: 0.65rem;">SUCCESS</span></td>
+                        <td class="text-end"><a href="#" onclick="alert('Downloading receipt INV-2026-006...')" class="btn btn-secondary-custom btn-sm px-2 py-0.5 text-teal" style="font-size: 0.7rem;"><i class="bi bi-file-pdf me-1"></i>PDF Receipt</a></td>
+                    </tr>
+                    <tr>
+                        <td class="text-white font-monospace">INV-2026-005</td>
+                        <td class="text-secondary small">May 01, 2026 - May 31, 2026</td>
+                        <td class="text-white">$19.00</td>
+                        <td><span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25" style="font-size: 0.65rem;">SUCCESS</span></td>
+                        <td class="text-end"><a href="#" onclick="alert('Downloading receipt INV-2026-005...')" class="btn btn-secondary-custom btn-sm px-2 py-0.5 text-teal" style="font-size: 0.7rem;"><i class="bi bi-file-pdf me-1"></i>PDF Receipt</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- API Keys — redirected to Settings > AI Preferences -->
+<div id="panel-api-keys" class="tab-panel tab-hidden">
+    <div class="empty-state py-5">
+        <i class="bi bi-key empty-state-icon"></i>
+        <h3 class="empty-state-title">API Keys moved to Settings</h3>
+        <p class="empty-state-text">Manage your AI provider key under Settings → AI Preferences.</p>
+        <button type="button" class="btn btn-primary-custom" onclick="window.location.hash='#settings'; if (window.activateSettingsSection) activateSettingsSection('ai');">
+            Open AI Preferences
+        </button>
+    </div>
+</div>
+
+<!-- ==========================================
+     TAB 9: HELP CENTER & GUIDES VIEW
+     ========================================== -->
+<div id="panel-help-center" class="tab-panel tab-hidden">
+    <div class="mb-4">
+        <h2 class="text-white mb-1"><i class="bi bi-question-circle text-indigo me-2"></i>Help Center & Guides</h2>
+        <p class="text-secondary mb-0" style="font-size: 0.8rem;">Browse documentation parameters, FAQ guidelines, and request technical support.</p>
+    </div>
+    
+    <!-- Search guides -->
+    <div class="glass-card p-3 mb-4 text-center py-4" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.04), rgba(45, 212, 191, 0.02));">
+        <h5 class="text-white mb-2">How can we help you today?</h5>
+        <div class="input-group mx-auto" style="max-width: 480px;">
+            <span class="input-group-text bg-transparent border-end-0" style="border-color: rgba(255,255,255,0.05);"><i class="bi bi-search text-secondary"></i></span>
+            <input type="text" id="help-search-input" class="form-control form-control-custom border-start-0" placeholder="Search guides, FAQs, and documentation..." style="border-color: rgba(255,255,255,0.05) !important;">
+        </div>
+    </div>
+    
+    <!-- Article grid -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="glass-card p-3 h-100 hover-primary cursor-pointer" onclick="alert('Help Article: Getting Started - Oplyra runs on AI LLM models. Create a workspace, and input prompt topic values to draft copies.')">
+                <h6 class="text-white mb-1.5" style="font-size: 0.85rem;"><i class="bi bi-book text-indigo me-1.5"></i>Getting Started Guide</h6>
+                <p class="text-secondary small mb-0" style="font-size: 0.725rem; line-height: 1.4;">Learn how to configure your first campaign project workspace and draft your first article copies.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="glass-card p-3 h-100 hover-primary cursor-pointer" onclick="alert('Help Article: SEO Analysis - Oplyra grades Flesch Reading Ease readability and keyword density statistics in real-time.')">
+                <h6 class="text-white mb-1.5" style="font-size: 0.85rem;"><i class="bi bi-graph-up-arrow text-teal me-1.5"></i>SEO Scoring Audits</h6>
+                <p class="text-secondary small mb-0" style="font-size: 0.725rem; line-height: 1.4;">Understand keyword stuffing parameters, Flesch Reading Ease scoring metrics, and heading indicators.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="glass-card p-3 h-100 hover-primary cursor-pointer" onclick="alert('Help Article: Billing - Subscriptions are handled dynamically. Manage limits inside settings preferences.')">
+                <h6 class="text-white mb-1.5" style="font-size: 0.85rem;"><i class="bi bi-credit-card text-warning me-1.5"></i>Billing & Limits</h6>
+                <p class="text-secondary small mb-0" style="font-size: 0.725rem; line-height: 1.4;">Upgrade subscription tier limits, review invoice history lists, or view refund policies.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- FAQ Accordion -->
+    <h5 class="text-white mb-3"><i class="bi bi-patch-question me-2 text-indigo"></i>Frequently Asked Questions</h5>
+    <div class="accordion accordion-custom mb-4" id="faqAccordion">
+        <div class="accordion-item accordion-item-custom">
+            <h2 class="accordion-header" id="faqOne">
+                <button class="accordion-button accordion-button-custom collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                    What model does Oplyra utilize?
+                </button>
+            </h2>
+            <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="faqOne" data-bs-parent="#faqAccordion">
+                <div class="accordion-body text-secondary small" style="font-size: 0.75rem;">
+                    Oplyra integrates AI models to perform creative writing and content formatting based on custom topics, target keywords, and formats.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item accordion-item-custom">
+            <h2 class="accordion-header" id="faqTwo">
+                <button class="accordion-button accordion-button-custom collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                    How do I test my own AI API Key?
+                </button>
+            </h2>
+            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="faqTwo" data-bs-parent="#faqAccordion">
+                <div class="accordion-body text-secondary small" style="font-size: 0.75rem;">
+                    Open the API Keys tab in the sidebar menu. Paste your custom API key into the form and trigger &quot;Test Key Connection&quot;. Once saved, Oplyra will execute AI prompts using your personal token.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Support form ticket -->
+    <div class="glass-card p-3">
+        <h5 class="text-white mb-1.5"><i class="bi bi-envelope-heart text-indigo me-1.5"></i>Submit Support Ticket</h5>
+        <p class="text-secondary small mb-3">Need personalized assistance? Send a message to our MCA Final Year project developers.</p>
+        
+        <form id="support-ticket-form" onsubmit="event.preventDefault(); alert('Support Ticket Submitted successfully! Developers will review your message shortly.'); this.reset();">
+            <div class="row g-2">
+                <div class="col-md-6 mb-2">
+                    <label for="ticket-subject" class="form-label-custom">Ticket Subject</label>
+                    <input type="text" id="ticket-subject" class="form-control form-control-custom" placeholder="e.g. Account upgrade limits query" required>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label for="ticket-priority" class="form-label-custom">Priority level</label>
+                    <select id="ticket-priority" class="form-select form-control-custom">
+                        <option value="low">Low Priority</option>
+                        <option value="medium" selected>Medium Priority</option>
+                        <option value="high">High Priority</option>
+                    </select>
+                </div>
+                <div class="col-12 mb-3">
+                    <label for="ticket-message" class="form-label-custom">Message Description</label>
+                    <textarea id="ticket-message" rows="3" class="form-control form-control-custom" placeholder="Describe the issue you're encountering..." required></textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary-custom btn-sm px-4">Send Support Ticket</button>
+        </form>
+    </div>
+</div>
+
+<!-- Apply hash route synchronously so the correct panel is active before first paint -->
+<script>
+(function applyInitialPanelFromHash() {
+    var routes = {
+        '#dashboard': 'panel-dashboard',
+        '#tasks': 'panel-tasks',
+        '#agents': 'panel-agents',
+        '#knowledge': 'panel-knowledge',
+        '#files': 'panel-files',
+        '#tools': 'panel-tools',
+        '#reports': 'panel-reports',
+        '#seo-analyzer': 'panel-seo-analyzer',
+        '#analytics': 'panel-reports',
+        '#settings': 'panel-settings',
+        '#profile': 'panel-profile',
+        '#templates': 'panel-templates',
+        '#billing': 'panel-billing',
+        '#api-keys': 'panel-settings',
+        '#help-center': 'panel-help-center'
+    };
+    var hash = window.location.hash;
+    if (!hash) hash = '#dashboard';
+    var targetId = routes[hash] || 'panel-dashboard';
+    document.querySelectorAll('.tab-panel').forEach(function(panel) {
+        if (panel.id === targetId) {
+            panel.classList.remove('tab-hidden', 'tab-entering', 'tab-leaving');
+            panel.classList.add('tab-active');
+        } else {
+            panel.classList.add('tab-hidden');
+            panel.classList.remove('tab-active', 'tab-entering', 'tab-leaving');
+        }
+    });
+})();
+</script>
+
+<!-- STRIPE CHECKOUT MODAL -->
+<div class="modal fade" id="stripeCheckoutModal" tabindex="-1" aria-labelledby="stripeCheckoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-custom">
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="stripeCheckoutModalLabel"><i class="bi bi-credit-card-2-front text-indigo me-2"></i>Stripe Secure Checkout</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="stripe-payment-form" onsubmit="handleStripeMockCheckout(event)">
+                <div class="modal-body p-4">
+                    <div class="mb-3 text-center">
+                        <span class="text-secondary small d-block mb-1">SELECTED SUBSCRIPTION LEVEL</span>
+                        <div class="fs-4 text-white fw-bold" id="stripe-price-indicator">$19.00 / month</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="card-holder-name" class="form-label-custom">Cardholder Name</label>
+                        <input type="text" id="card-holder-name" class="form-control form-control-custom" required placeholder="John Doe">
+                    </div>
+                    <div class="mb-3">
+                        <label for="card-number" class="form-label-custom">Card Number</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-transparent border-end-0" style="border-color: rgba(255,255,255,0.05);"><i class="bi bi-credit-card text-secondary"></i></span>
+                            <input type="text" id="card-number" class="form-control form-control-custom border-start-0" required placeholder="4242 4242 4242 4242">
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6 mb-3">
+                            <label for="card-expiry" class="form-label-custom">Expiration Date</label>
+                            <input type="text" id="card-expiry" class="form-control form-control-custom" required placeholder="MM / YY">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label for="card-cvc" class="form-label-custom">CVC Security Code</label>
+                            <input type="text" id="card-cvc" class="form-control form-control-custom" required placeholder="123">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer modal-footer-custom">
+                    <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom" id="stripe-checkout-btn">Upgrade Plan Now</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     MODAL: CREATE TASK
+     ========================================== -->
+<div class="modal fade" id="createTaskModal" tabindex="-1" aria-labelledby="createTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-custom">
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title text-white" id="createTaskModalLabel"><i class="bi bi-check2-square text-indigo me-2"></i>Create New Task</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="create-task-form" onsubmit="handleCreateTask(event)">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="task-title" class="form-label-custom">Task Title</label>
+                        <input type="text" id="task-title" class="form-control form-control-custom" required placeholder="e.g. Review Facebook Ads structure">
+                    </div>
+                    <div class="mb-3">
+                        <label for="task-desc" class="form-label-custom">Description</label>
+                        <textarea id="task-desc" class="form-control form-control-custom" rows="3" placeholder="Describe what needs to be completed..."></textarea>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label for="task-priority" class="form-label-custom">Priority</label>
+                            <select id="task-priority" class="form-select form-control-custom">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label for="task-due-date" class="form-label-custom">Due Date</label>
+                            <input type="date" id="task-due-date" class="form-control form-control-custom">
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label for="task-project" class="form-label-custom">Client (Optional)</label>
+                            <select id="task-project" class="form-select form-control-custom">
+                                <option value="">No Client</option>
+                                {% for project in all_projects %}
+                                    <option value="{{ project.id }}">{{ project.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label for="task-campaign" class="form-label-custom">Campaign (Optional)</label>
+                            <select id="task-campaign" class="form-select form-control-custom">
+                                <option value="">No Campaign</option>
+                                {% for campaign in all_campaigns %}
+                                    <option value="{{ campaign.id }}" data-project="{{ campaign.project_id }}">{{ campaign.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer modal-footer-custom">
+                    <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom">Create Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     MODAL: COMPILE REPORT
+     ========================================== -->
+<div class="modal fade" id="createReportModal" tabindex="-1" aria-labelledby="createReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-custom">
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title text-white" id="createReportModalLabel"><i class="bi bi-file-earmark-bar-graph text-indigo me-2"></i>Compile Client Report</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="create-report-form" onsubmit="handleCreateReport(event)">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="report-title" class="form-label-custom">Report Title</label>
+                        <input type="text" id="report-title" class="form-control form-control-custom" required placeholder="e.g. Weekly Performance Summary">
+                    </div>
+                    <div class="mb-3">
+                        <label for="report-project" class="form-label-custom">Client (Optional)</label>
+                        <select id="report-project" class="form-select form-control-custom">
+                            <option value="">No Client</option>
+                            {% for project in all_projects %}
+                                <option value="{{ project.id }}">{{ project.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="report-campaign" class="form-label-custom">Campaign (Optional)</label>
+                        <select id="report-campaign" class="form-select form-control-custom">
+                            <option value="">No Campaign</option>
+                            {% for campaign in all_campaigns %}
+                                <option value="{{ campaign.id }}" data-project="{{ campaign.project_id }}">{{ campaign.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer modal-footer-custom">
+                    <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom">Generate & Compile PDF</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Analytics Chart Handler Script -->
+<script src="{{ url_for('static', filename='js/analytics.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/agents.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/knowledge.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tools.js') }}"></script>
+
+<!-- HASH ROUTING & DYNAMIC PREVIEW DATA LOGIC -->
+<script>
+    // Tab switching and URL hash monitor — crossfade with layout lock (no jank)
+    const PANEL_TRANSITION_MS = 200;
+    let panelSwitchTimer = null;
+    let panelSwitchToken = 0;
+
+    function prefersReducedMotion() {
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+
+    function resetPanelScroll() {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+        const pageContent = document.querySelector('.page-content');
+        if (pageContent) pageContent.scrollTop = 0;
+    }
+
+    function finishPanelTransition(pageContent, targetPanelId) {
+        if (pageContent) {
+            pageContent.classList.remove('is-panel-switching');
+            pageContent.style.minHeight = '';
+        }
+        resetPanelScroll();
+        requestAnimationFrame(function() {
+            resetPanelScroll();
+            requestAnimationFrame(function() {
+                resetPanelScroll();
+                setTimeout(resetPanelScroll, 0);
+                notifyChartsResize(targetPanelId);
+            });
+        });
+    }
+
+    function resolvePanelMeta(hash) {
+        const routes = {
+            '#dashboard': { targetPanelId: 'panel-dashboard', sidebarItemId: 'sidebar-dashboard', sectionTitle: 'Dashboard' },
+            '': { targetPanelId: 'panel-dashboard', sidebarItemId: 'sidebar-dashboard', sectionTitle: 'Dashboard' },
+            '#tasks': { targetPanelId: 'panel-tasks', sidebarItemId: 'sidebar-dashboard', sectionTitle: 'Tasks' },
+            '#agents': { targetPanelId: 'panel-agents', sidebarItemId: 'sidebar-agents', sectionTitle: 'AI Studio' },
+            '#knowledge': { targetPanelId: 'panel-knowledge', sidebarItemId: 'sidebar-knowledge', sectionTitle: 'Knowledge' },
+            '#files': { targetPanelId: 'panel-files', sidebarItemId: 'sidebar-files', sectionTitle: 'Files' },
+            '#tools': { targetPanelId: 'panel-tools', sidebarItemId: 'sidebar-agents', sectionTitle: 'Connected Tools' },
+            '#reports': { targetPanelId: 'panel-reports', sidebarItemId: 'sidebar-reports', sectionTitle: 'Reports' },
+            '#seo-analyzer': { targetPanelId: 'panel-seo-analyzer', sidebarItemId: '', sectionTitle: 'SEO Analyzer' },
+            '#analytics': { targetPanelId: 'panel-reports', sidebarItemId: 'sidebar-reports', sectionTitle: 'Reports' },
+            '#settings': { targetPanelId: 'panel-settings', sidebarItemId: 'sidebar-settings', sectionTitle: 'Settings' },
+            '#profile': { targetPanelId: 'panel-profile', sidebarItemId: 'sidebar-settings', sectionTitle: 'My Profile' },
+            '#templates': { targetPanelId: 'panel-templates', sidebarItemId: '', sectionTitle: 'Templates' },
+            '#billing': { targetPanelId: 'panel-billing', sidebarItemId: 'sidebar-settings', sectionTitle: 'Billing & Plans' },
+            '#api-keys': { targetPanelId: 'panel-settings', sidebarItemId: 'sidebar-settings', sectionTitle: 'Settings' },
+            '#help-center': { targetPanelId: 'panel-help-center', sidebarItemId: '', sectionTitle: 'Help Center & Guides' },
+        };
+        return routes[hash || '#dashboard'] || routes['#dashboard'];
+    }
+
+    function updatePanelChrome(meta) {
+        document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+        if (meta.sidebarItemId) {
+            const sidebarLink = document.getElementById(meta.sidebarItemId);
+            if (sidebarLink) sidebarLink.classList.add('active');
+        }
+        const navbarTitle = document.getElementById('navbar-section-title');
+        if (navbarTitle) navbarTitle.textContent = meta.sectionTitle;
+    }
+
+    function notifyChartsResize(panelId) {
+        if (panelId === 'panel-analytics') {
+            requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+        }
+    }
+
+    function cleanupPanelTransition() {
+        if (panelSwitchTimer) {
+            clearTimeout(panelSwitchTimer);
+            panelSwitchTimer = null;
+        }
+        const pageContent = document.querySelector('.page-content');
+        if (pageContent) {
+            pageContent.classList.remove('is-panel-switching');
+            pageContent.style.minHeight = '';
+        }
+        document.querySelectorAll('.tab-panel').forEach(p => {
+            p.classList.remove('tab-entering', 'tab-leaving');
+        });
+    }
+
+    function setPanelStateImmediate(targetPanelId, meta) {
+        cleanupPanelTransition();
+        document.querySelectorAll('.tab-panel').forEach(p => {
+            p.classList.add('tab-hidden');
+            p.classList.remove('tab-active', 'tab-entering', 'tab-leaving');
+        });
+        const target = document.getElementById(targetPanelId);
+        if (target) {
+            target.classList.remove('tab-hidden', 'tab-entering', 'tab-leaving');
+            target.classList.add('tab-active');
+        }
+        updatePanelChrome(meta);
+        resetPanelScroll();
+        notifyChartsResize(targetPanelId);
+    }
+
+    function handleHashRouting(options) {
+        const opts = options || {};
+        const hash = window.location.hash || '#dashboard';
+        const meta = resolvePanelMeta(hash);
+        const targetPanel = document.getElementById(meta.targetPanelId);
+        if (!targetPanel) return;
+
+        const currentPanel = document.querySelector('.tab-panel.tab-active');
+        const samePanel = currentPanel && currentPanel.id === meta.targetPanelId;
+
+        // Sidebar + navbar update immediately so navigation feels responsive
+        updatePanelChrome(meta);
+
+        if (opts.initial || samePanel || prefersReducedMotion()) {
+            setPanelStateImmediate(meta.targetPanelId, meta);
+            return;
+        }
+
+        // Rapid re-navigation during an in-flight transition: snap instantly
+        if (panelSwitchTimer) {
+            setPanelStateImmediate(meta.targetPanelId, meta);
+            return;
+        }
+
+        const token = ++panelSwitchToken;
+        const pageContent = document.querySelector('.page-content');
+        // Lock to the incoming panel height only — avoids shrink + scroll jump on clear
+        const lockHeight = targetPanel.offsetHeight || targetPanel.scrollHeight || 0;
+        if (pageContent && lockHeight > 0) {
+            pageContent.classList.add('is-panel-switching');
+            pageContent.style.minHeight = lockHeight + 'px';
+        }
+
+        if (currentPanel) {
+            currentPanel.classList.add('tab-hidden');
+            currentPanel.classList.remove('tab-active', 'tab-leaving');
+        }
+
+        targetPanel.classList.remove('tab-hidden');
+        targetPanel.classList.add('tab-entering', 'tab-active');
+
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                if (token !== panelSwitchToken) return;
+                resetPanelScroll();
+                targetPanel.classList.remove('tab-entering');
+            });
+        });
+
+        panelSwitchTimer = setTimeout(function() {
+            if (token !== panelSwitchToken) return;
+            finishPanelTransition(pageContent, meta.targetPanelId);
+            panelSwitchTimer = null;
+        }, PANEL_TRANSITION_MS);
+    }
+
+    if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+    }
+
+    window.addEventListener('hashchange', function() { handleHashRouting(); });
+    
+    // Ajax Copy Regeneration Handler
+    window.regenerateContent = function(contentId) {
+        if (!confirm('Are you sure you want to regenerate this content? The current draft will be overwritten.')) {
+            return;
+        }
+        
+        const btn = document.querySelector(`.btn-regenerate[data-content-id="${contentId}"]`) || document.querySelector(`button[onclick="window.regenerateContent(${contentId})"]`);
+        let originalHtml = '';
+        if (btn) {
+            btn.disabled = true;
+            originalHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        }
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch(`/content/regenerate/${contentId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRF-Token': csrfToken
+            },
+            body: new URLSearchParams({
+                'csrf_token': csrfToken
+            })
+        })
+        .then(response => response.json().then(data => ({ status: response.status, body: data })))
+        .then(result => {
+            if (result.status === 200 && result.body.success) {
+                window.location.href = result.body.redirect_url;
+            } else {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+                const errMsg = result.body.error || "An unexpected error occurred during copy regeneration.";
+                alert(errMsg);
+            }
+        })
+        .catch(err => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+            console.error(err);
+            alert("An error occurred. Please try again.");
+        });
+    };
+
+    // Global swiper navigator for Instagram/LinkedIn carousels
+    window.navigateCarouselSlide = function(id, direction) {
+        if (!window.carouselData || !window.carouselData[id]) return;
+        const data = window.carouselData[id];
+        
+        let newIndex = data.index + direction;
+        if (newIndex < 0) newIndex = data.slides.length - 1;
+        if (newIndex >= data.slides.length) newIndex = 0;
+        
+        data.index = newIndex;
+        
+        const textPane = document.querySelector(`.carousel-text-pane-${id}`);
+        if (textPane) {
+            textPane.textContent = `"${data.slides[newIndex]}"`;
+        }
+        
+        const indicator = document.querySelector(`.carousel-indicator-${id}`);
+        if (indicator) {
+            indicator.textContent = `Slide ${newIndex + 1} / ${data.slides.length}`;
+        }
+    };
+
+    window.quickRouteContent = function(format) {
+        const input = document.getElementById('quick-prompt-input');
+        const projectSelect = document.getElementById('quick-project-select');
+        
+        const topic = input ? encodeURIComponent(input.value.trim()) : '';
+        const projectId = projectSelect ? projectSelect.value : '';
+        
+        let targetUrl = `/content/?type=${format}`;
+        if (topic) {
+            targetUrl += `&topic=${topic}`;
+        }
+        if (projectId) {
+            targetUrl += `&project_id=${projectId}`;
+        }
+        window.location.href = targetUrl;
+    };
+
+    window.toggleFabMenu = function() {
+        const menu = document.getElementById('dashboardFabMenuContainer');
+        if (menu) {
+            menu.classList.toggle('active');
+        }
+    };
+    
+    // Dismiss FAB menu on body click
+    document.addEventListener('click', function(e) {
+        const trigger = document.getElementById('dashboardFabTriggerBtn');
+        const menu = document.getElementById('dashboardFabMenuContainer');
+        if (trigger && menu && !trigger.contains(e.target) && !menu.contains(e.target)) {
+            menu.classList.remove('active');
+        }
+    });
+
+    window.addEventListener('DOMContentLoaded', function() {
+        handleHashRouting({ initial: true });
+
+        // 1. Populate current date display
+        const dateDisplay = document.getElementById('current-date-display');
+        if (dateDisplay) {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            dateDisplay.textContent = new Date().toLocaleDateString('en-US', options);
+        }
+        
+        // Load recent contents list and metrics card details dynamically
+        try {
+            const contentsJson = JSON.parse(document.getElementById('recent-contents-data').textContent);
+            const projectsJson = JSON.parse(document.getElementById('recent-projects-data').textContent);
+            
+            // Sort contents by date descending
+            contentsJson.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // 2. Render Card 3: SEO reports count
+            const seoCount = contentsJson.filter(c => c.seo_score !== null).length;
+            const seoKpi = document.getElementById('kpi-seo-reports-count');
+            if (seoKpi) seoKpi.textContent = seoCount;
+            
+            // 3. Assemble Visual Content Preview Cards (Bento style)
+            let itemsToRender = [...contentsJson];
+            
+            const hasImage = itemsToRender.some(item => item.type === 'image');
+            const hasCarousel = itemsToRender.some(item => item.type === 'carousel');
+            const hasVideo = itemsToRender.some(item => item.type === 'video');
+            
+            if (!hasImage) {
+                itemsToRender.push({
+                    id: 9901,
+                    title: "Stability AD: Zephyrus G14 Showcase Banner",
+                    type: "image",
+                    body: "stability-diffusion-xl prompt: high-end neon cyberpunk workspace with ASUS ROG Zephyrus laptop, premium high details, 4k",
+                    prompt_used: '{"tone": "futuristic", "keywords": ["rog", "zephyrus"], "audience": "gamers"}',
+                    date: new Date().toISOString().slice(0, 16).replace('T', ' '),
+                    status: "approved",
+                    seo_score: 95,
+                    url: "#"
+                });
+            }
+            
+            if (!hasCarousel) {
+                itemsToRender.push({
+                    id: 9902,
+                    title: "Instagram Carousel: 5 Steps to Affiliate Success",
+                    type: "carousel",
+                    body: "Slide 1: Identify your high-intent affiliate niche.\n\nSlide 2: Audit keyword density for target audience traffic.\n\nSlide 3: Structure blog posts with markdown hashes.\n\nSlide 4: Inject tracking links into organic reviews.\n\nSlide 5: Automated social shares to multiply reach.",
+                    prompt_used: '{"tone": "inspirational", "keywords": ["affiliate", "marketing"], "audience": "creators"}',
+                    date: new Date(Date.now() - 3600000).toISOString().slice(0, 16).replace('T', ' '),
+                    status: "draft",
+                    seo_score: null,
+                    url: "#"
+                });
+            }
+            
+            if (!hasVideo) {
+                itemsToRender.push({
+                    id: 9903,
+                    title: "TikTok Short: Smart Blender 10-Second Hook Script",
+                    type: "video",
+                    body: "Hook: Stop blending your money! 💸\n\nBody: The Pro Chef smart blender automatically calculates calories on the fly.\n\nCall-to-Action: Link in bio for 20% discount!",
+                    prompt_used: '{"tone": "energetic", "keywords": ["blender", "kitchen"], "audience": "homemakers"}',
+                    date: new Date(Date.now() - 7200000).toISOString().slice(0, 16).replace('T', ' '),
+                    status: "draft",
+                    seo_score: 80,
+                    url: "#"
+                });
+            }
+            
+            // Sort combined list by date descending
+            itemsToRender.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // Find most recent items for each bento category
+            const blogItem = itemsToRender.find(item => item.type === 'blog' || item.type === 'product_review');
+            const imageItem = itemsToRender.find(item => item.type === 'image');
+            const carouselItem = itemsToRender.find(item => item.type === 'carousel');
+            const videoItem = itemsToRender.find(item => item.type === 'video');
+
+            // Helper to draw circle gauges
+            function drawBentoGauge(canvasId, value, strokeColor) {
+                const canvas = document.getElementById(canvasId);
+                if (!canvas) return;
+                const isLightTheme = document.documentElement.getAttribute('data-theme') === 'light';
+                const ctx = canvas.getContext('2d');
+                const x = canvas.width / 2;
+                const y = canvas.height / 2;
+                const radius = 18;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = isLightTheme ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.05)';
+                ctx.stroke();
+                ctx.beginPath();
+                const startAngle = -0.5 * Math.PI;
+                const endAngle = startAngle + (value / 100) * 2 * Math.PI;
+                ctx.arc(x, y, radius, startAngle, endAngle, false);
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = strokeColor;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+
+            // 1. Populate Blog Card
+            const bentoBlog = blogItem || {
+                id: 9900,
+                title: "Top 5 High-FPS Gaming Laptops in 2026",
+                body: "ASUS ROG Zephyrus leads the pack with an RTX 5080 chipset and fluid 240Hz screen density outputs. Learn why affiliate creators choose it for SEO reviews...",
+                date: new Date().toISOString().slice(0, 16).replace('T', ' '),
+                seo_score: 92,
+                url: "#"
+            };
+            const blogTitleNode = document.getElementById('bento-blog-title');
+            const blogBodyNode = document.getElementById('bento-blog-body');
+            const blogDateNode = document.getElementById('bento-blog-date');
+            const blogSeoScoreNode = document.getElementById('bento-blog-seo');
+            const blogReadabilityNode = document.getElementById('bento-blog-readability');
+            const blogViewBtn = document.getElementById('bento-blog-view-btn');
+            const blogRegenBtn = document.getElementById('bento-blog-regen-btn');
+
+            if (blogTitleNode) blogTitleNode.textContent = bentoBlog.title;
+            if (blogBodyNode) {
+                var blogSnippet = (bentoBlog.body || '').replace(/[#*`_-]/g, '').trim().substring(0, 160);
+                blogBodyNode.textContent = '"' + blogSnippet + '..."';
+            }
+            if (blogDateNode) blogDateNode.textContent = bentoBlog.date;
+            if (blogSeoScoreNode) {
+                const seoScore = bentoBlog.seo_score || 75;
+                blogSeoScoreNode.textContent = seoScore;
+                drawBentoGauge('bentoSeoScoreCanvas', seoScore, seoScore >= 80 ? '#2dd4bf' : '#f59e0b');
+            }
+            if (blogReadabilityNode) blogReadabilityNode.textContent = `Readability: Optimal (${bentoBlog.body.split(/\s+/).length} words)`;
+            if (blogViewBtn) {
+                blogViewBtn.href = bentoBlog.url === "#" ? "/content/" : `/content/view/${bentoBlog.id}`;
+            }
+            if (blogRegenBtn && bentoBlog.id !== 9900) {
+                blogRegenBtn.disabled = false;
+                blogRegenBtn.onclick = function() { window.regenerateContent(bentoBlog.id); };
+            }
+
+            // 2. Populate Image Card
+            const bentoImage = imageItem || {
+                title: "Zephyrus G14 neon cyberpunk showcase",
+                date: new Date().toISOString().slice(0, 10),
+                body: "cyberpunk workspace with glowing ASUS laptop"
+            };
+            const imageDateNode = document.getElementById('bento-image-date');
+            const imageConceptNode = document.getElementById('bento-image-concept');
+            const imageContainer = document.getElementById('bento-image-container');
+            const imageBtn = document.getElementById('bento-image-btn');
+
+            if (imageDateNode) imageDateNode.textContent = bentoImage.date.slice(5); // e.g. 06-21
+            if (imageConceptNode) imageConceptNode.textContent = bentoImage.title;
+            if (imageBtn) {
+                imageBtn.href = bentoImage.id ? `/content/view/${bentoImage.id}` : "/content/";
+            }
+            if (imageContainer) {
+                let conceptGrad = 'from-purple-950 to-indigo-900';
+                if (bentoImage.title.toLowerCase().includes('blender')) {
+                    conceptGrad = 'from-teal-950 to-emerald-900';
+                } else if (bentoImage.title.toLowerCase().includes('laptop') || bentoImage.title.toLowerCase().includes('rog')) {
+                    conceptGrad = 'from-indigo-950 to-slate-900';
+                }
+                imageContainer.innerHTML = `
+                    <div class="absolute inset-0 bg-gradient-to-tr ${conceptGrad} flex flex-col items-center justify-center p-2 text-center animate-pulse">
+                        <i class="bi bi-image text-white opacity-20 text-xl mb-1"></i>
+                        <span class="text-[9px] text-slate-300 font-bold uppercase tracking-wider text-truncate w-full">${bentoImage.title}</span>
+                        <span class="text-[7px] text-slate-400 font-mono">stability-diffusion-xl</span>
+                    </div>
+                `;
+            }
+
+            // 3. Populate Carousel Card
+            const bentoCarousel = carouselItem || {
+                id: 9901,
+                title: "Affiliate slide deck",
+                body: "Slide 1: Select your target affiliate products.\n\nSlide 2: Inject short tracking redirect links.\n\nSlide 3: Audit readability scores.\n\nSlide 4: Broadcast across social buffers.",
+                date: new Date().toISOString().slice(5, 10)
+            };
+            let carouselSlides = bentoCarousel.body.split(/\n\n+/).map(s => s.trim().replace(/[#*`_-]/g, '')).filter(s => s.length > 5);
+            if (carouselSlides.length < 2) {
+                carouselSlides = bentoCarousel.body.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 5);
+            }
+            if (carouselSlides.length === 0) carouselSlides = ["No slide copy found."];
+            
+            window.carouselData = window.carouselData || {};
+            window.carouselData[bentoCarousel.id] = {
+                index: 0,
+                slides: carouselSlides
+            };
+
+            const carouselDateNode = document.getElementById('bento-carousel-date');
+            const carouselIndicator = document.getElementById('bento-carousel-indicator');
+            const carouselSlideCopy = document.getElementById('bento-carousel-slide-copy');
+            const carouselPrevBtn = document.getElementById('bento-carousel-prev-btn');
+            const carouselNextBtn = document.getElementById('bento-carousel-next-btn');
+            const carouselViewBtn = document.getElementById('bento-carousel-view-btn');
+
+            if (carouselDateNode) carouselDateNode.textContent = bentoCarousel.date;
+            if (carouselSlideCopy) carouselSlideCopy.textContent = `"${carouselSlides[0]}"`;
+            if (carouselIndicator) carouselIndicator.textContent = `Slide 1 / ${carouselSlides.length}`;
+            if (carouselViewBtn) {
+                carouselViewBtn.href = bentoCarousel.id !== 9901 ? `/content/view/${bentoCarousel.id}` : "/content/";
+            }
+
+            if (carouselPrevBtn && carouselNextBtn) {
+                // Helper slide transitions
+                window.navigateBentoCarousel = function(direction) {
+                    const data = window.carouselData[bentoCarousel.id];
+                    let newIndex = data.index + direction;
+                    if (newIndex < 0) newIndex = data.slides.length - 1;
+                    if (newIndex >= data.slides.length) newIndex = 0;
+                    
+                    data.index = newIndex;
+                    if (carouselSlideCopy) carouselSlideCopy.textContent = `"${data.slides[newIndex]}"`;
+                    if (carouselIndicator) carouselIndicator.textContent = `Slide ${newIndex + 1} / ${data.slides.length}`;
+                };
+                
+                carouselPrevBtn.onclick = function() { window.navigateBentoCarousel(-1); };
+                carouselNextBtn.onclick = function() { window.navigateBentoCarousel(1); };
+            }
+
+            // 4. Populate Video Card
+            const bentoVideo = videoItem || {
+                title: "Smart Blender Hook Script",
+                body: "Hook: Stop spending money on useless blenders! 💸\n\nVoiceover: The Pro Chef blender counts calories on the fly.",
+                date: new Date().toISOString().slice(11, 16)
+            };
+            const videoDateNode = document.getElementById('bento-video-date');
+            const videoScriptNode = document.getElementById('bento-video-script');
+            const videoTitleNode = document.getElementById('bento-video-title');
+            const videoPlayBtn = document.getElementById('bento-video-play-btn');
+            const videoViewBtn = document.getElementById('bento-video-view-btn');
+
+            if (videoDateNode) videoDateNode.textContent = bentoVideo.date;
+            if (videoScriptNode) videoScriptNode.textContent = `"${bentoVideo.body.replace(/[#*`_-]/g, '').trim().substring(0, 90)}..."`;
+            if (videoTitleNode) videoTitleNode.textContent = bentoVideo.title;
+            if (videoViewBtn) {
+                videoViewBtn.href = bentoVideo.id ? `/content/view/${bentoVideo.id}` : "/content/";
+            }
+            if (videoPlayBtn) {
+                videoPlayBtn.onclick = function() {
+                    alert(`Voiceover Audio Narration simulation: "${bentoVideo.body.split('\n')[0]}"`);
+                };
+            }
+
+            // 5. Render Activity Timeline
+            const timeline = document.getElementById('dashboard-timeline');
+            if (timeline) {
+                timeline.innerHTML = '';
+                const activities = [];
+                
+                projectsJson.forEach(p => {
+                    activities.push({
+                        type: 'project',
+                        text: `Workspace created: <strong>${p.name}</strong>`,
+                        date: new Date(p.date),
+                        rawDate: p.date
+                    });
+                });
+                
+                contentsJson.forEach(c => {
+                    let typeName = 'Blog';
+                    if (c.type === 'email') typeName = 'Email';
+                    else if (c.type === 'facebook_post') typeName = 'FB Post';
+                    else if (c.type === 'product_review') typeName = 'Product Review';
+                    
+                    activities.push({
+                        type: 'content',
+                        text: `Generated ${typeName}: <strong>${c.title}</strong>`,
+                        date: new Date(c.date),
+                        rawDate: c.date
+                    });
+                });
+                
+                // Add simulated AI Agents events to timeline
+                const baseDate = new Date();
+                const agentEvents = [
+                    { text: "🤖 <strong>Copywriter Agent</strong> refined tone metrics on pixel 10 pro copy", minOffset: 4 },
+                    { text: "🤖 <strong>SEO Agent</strong> finalized density checks for Top High-FPS Laptops", minOffset: 12 },
+                    { text: "🤖 <strong>Publisher Agent</strong> auto-scheduled email campaign blender promo", minOffset: 34 },
+                    { text: "🤖 <strong>Analytics Agent</strong> aggregated affiliate clicks from ClickBank postbacks", minOffset: 85 }
+                ];
+                
+                agentEvents.forEach(e => {
+                    const eDate = new Date(baseDate.getTime() - e.minOffset * 60 * 1000);
+                    const dateStr = eDate.toISOString().slice(0, 10) + " " + eDate.toTimeString().slice(0, 5);
+                    activities.push({
+                        type: 'agent',
+                        text: e.text,
+                        date: eDate,
+                        rawDate: dateStr
+                    });
+                });
+                
+                // Sort by date descending
+                activities.sort((a, b) => b.date - a.date);
+                
+                const recentActivities = activities.slice(0, 5);
+                if (recentActivities.length > 0) {
+                    recentActivities.forEach(act => {
+                        let markerClass = 'timeline-marker';
+                        if (act.type === 'content') markerClass = 'timeline-marker timeline-marker-teal';
+                        else if (act.type === 'agent') markerClass = 'timeline-marker bg-warning border-warning';
+                        
+                        var esc = (window.OplyraSecurity && window.OplyraSecurity.escapeHtml)
+                            ? window.OplyraSecurity.escapeHtml
+                            : function (s) { return String(s); };
+                        timeline.innerHTML += `
+                            <div class="timeline-item">
+                                <span class="${markerClass}"></span>
+                                <div class="timeline-time">${esc(act.rawDate)}</div>
+                                <div class="timeline-text text-white-50" style="font-size: 0.75rem;">${esc(act.text)}</div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    timeline.innerHTML = '<div class="text-secondary small py-2">No activity logged yet.</div>';
+                }
+            }
+
+            // 6. Compute statistics for Profile Page
+            const avgSeoNode = document.getElementById('profile-avg-seo-score');
+            if (avgSeoNode) {
+                const seoScores = contentsJson.filter(c => c.seo_score !== null).map(c => c.seo_score);
+                if (seoScores.length > 0) {
+                    const avg = Math.round(seoScores.reduce((a, b) => a + b, 0) / seoScores.length);
+                    avgSeoNode.textContent = `${avg}/100`;
+                } else {
+                    avgSeoNode.textContent = '0/100';
+                }
+            }
+            
+            // 7. Fetch Affiliate Revenue Metrics dynamically
+            fetch('/api/v1/affiliate/dashboard')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.metrics) {
+                        const m = data.metrics;
+                        const revTotal = document.getElementById('bento-revenue-total');
+                        const revConvs = document.getElementById('bento-revenue-conversions');
+                        const revClicks = document.getElementById('bento-revenue-clicks');
+                        const revEpc = document.getElementById('bento-revenue-epc');
+                        
+                        if (revTotal) revTotal.textContent = `$${m.total_revenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                        if (revConvs) revConvs.textContent = `${m.conversions} Sales (${m.conversion_rate}%)`;
+                        if (revClicks) revClicks.textContent = m.clicks.toLocaleString();
+                        if (revEpc) revEpc.textContent = `$${m.epc.toFixed(2)}`;
+                    }
+                })
+                .catch(err => console.error("Failed to load affiliate analytics:", err));
+        } catch (e) {
+            console.error("Error building dashboard elements:", e);
+        }
+        
+        // Fetch API Analytics values to update total tokens card metric and analytics charts
+        fetch('/api/analytics/dashboard')
+            .then(res => res.json())
+            .then(data => {
+                const tokenKpi = document.getElementById('kpi-token-count');
+                if (tokenKpi && data.total_tokens !== undefined) {
+                    tokenKpi.textContent = Number(data.total_tokens).toLocaleString();
+                }
+
+                // Render Content Distribution Chart and Token Usage Chart
+                renderAnalyticsPreviewCharts(data);
+            })
+            .catch(err => console.error("Failed to load token footprint metadata:", err));
+    });
+
+    let mainChartInstance = null;
+
+    function renderAnalyticsPreviewCharts(data) {
+        const mainCanvas = document.getElementById('dashboardMainTrendsCanvas');
+        if (!mainCanvas) return;
+        const ctx = mainCanvas.getContext('2d');
+        
+        // Setup gradients
+        const greenGrad = ctx.createLinearGradient(0, 0, 0, 250);
+        greenGrad.addColorStop(0, 'rgba(45, 212, 191, 0.25)');
+        greenGrad.addColorStop(1, 'rgba(45, 212, 191, 0.0)');
+        
+        const purpleGrad = ctx.createLinearGradient(0, 0, 0, 250);
+        purpleGrad.addColorStop(0, 'rgba(168, 85, 247, 0.25)');
+        purpleGrad.addColorStop(1, 'rgba(168, 85, 247, 0.0)');
+
+        function getChartConfig(labels, contentData, tokenData) {
+            return {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Content Generated',
+                            data: contentData,
+                            borderColor: '#2dd4bf', // Teal/Green
+                            backgroundColor: greenGrad,
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 5,
+                            pointBackgroundColor: '#2dd4bf',
+                            pointBorderColor: '#070a13',
+                            pointBorderWidth: 1.5,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Tokens Used',
+                            data: tokenData,
+                            borderColor: '#a855f7', // Purple
+                            backgroundColor: purpleGrad,
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 5,
+                            pointBackgroundColor: '#a855f7',
+                            pointBorderColor: '#070a13',
+                            pointBorderWidth: 1.5,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                color: '#94a3b8',
+                                boxWidth: 8,
+                                usePointStyle: true,
+                                font: { family: 'Inter', size: 9, weight: 600 }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                            titleColor: '#fff',
+                            bodyColor: '#cbd5e1',
+                            borderColor: 'hsl(var(--border-strong))',
+                            borderWidth: 1,
+                            padding: 8,
+                            titleFont: { family: 'Inter', size: 10, weight: 700 },
+                            bodyFont: { family: 'Inter', size: 9 },
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.dataset.label}: ${context.raw.toLocaleString()}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#64748b', font: { family: 'Inter', size: 9 } }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            grid: { color: 'hsl(var(--hover-overlay))' },
+                            ticks: {
+                                color: '#2dd4bf',
+                                font: { family: 'Inter', size: 9 },
+                                precision: 0
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false }, // only want grid lines from primary y axis
+                            ticks: {
+                                color: '#a855f7',
+                                font: { family: 'Inter', size: 9 },
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            };
+        }
+
+        // Default: Last 7 days
+        mainChartInstance = new Chart(ctx, getChartConfig(
+            data.weekly_activity.labels,
+            data.weekly_activity.counts,
+            data.weekly_token_usage.tokens
+        ));
+
+        function applyMainChartTheme() {
+            if (!mainChartInstance || !window.OplyraTheme) return;
+            const theme = window.OplyraTheme.getChartTheme();
+            mainChartInstance.options.plugins.legend.labels.color = theme.legend;
+            mainChartInstance.options.plugins.tooltip.backgroundColor = theme.tooltipBg;
+            mainChartInstance.options.plugins.tooltip.titleColor = theme.tooltipTitle;
+            mainChartInstance.options.plugins.tooltip.bodyColor = theme.tooltipBody;
+            mainChartInstance.data.datasets[0].pointBorderColor = theme.pointBorder;
+            mainChartInstance.data.datasets[1].pointBorderColor = theme.pointBorder;
+            mainChartInstance.options.scales.x.ticks.color = theme.tick;
+            mainChartInstance.options.scales.y.grid.color = theme.grid;
+            mainChartInstance.update('none');
+        }
+
+        window.addEventListener('oplyra:themechange', applyMainChartTheme);
+
+        // Timeframe button toggle logic
+        const btn7d = document.getElementById('btn-chart-7d');
+        const btn30d = document.getElementById('btn-chart-30d');
+        const btn90d = document.getElementById('btn-chart-90d');
+
+        function updateActiveButton(activeBtn, inactiveBtns) {
+            activeBtn.classList.add('active');
+            activeBtn.style.backgroundColor = '#f59e0b';
+            activeBtn.style.color = '#070a13';
+            activeBtn.style.borderColor = '#f59e0b';
+            activeBtn.style.fontWeight = '700';
+
+            inactiveBtns.forEach(btn => {
+                if (btn) {
+                    btn.classList.remove('active');
+                    btn.style.backgroundColor = 'transparent';
+                    btn.style.color = 'hsl(var(--text-secondary))';
+                    btn.style.borderColor = 'hsl(var(--border-subtle))';
+                    btn.style.fontWeight = '550';
+                }
+            });
+        }
+
+        function fetchAndLoadChart(timeframeVal, btnToActivate, btnsToDeactivate) {
+            updateActiveButton(btnToActivate, btnsToDeactivate);
+            fetch(`/api/analytics/dashboard?timeframe=${timeframeVal}`)
+                .then(res => res.json())
+                .then(tfData => {
+                    if (mainChartInstance) {
+                        mainChartInstance.data.labels = tfData.timeframe_activity.labels;
+                        mainChartInstance.data.datasets[0].data = tfData.timeframe_activity.counts;
+                        mainChartInstance.data.datasets[1].data = tfData.timeframe_token_usage.tokens;
+                        mainChartInstance.update();
+                    }
+                })
+                .catch(err => console.error("Failed to load timeframe charts:", err));
+        }
+
+        if (btn7d) {
+            btn7d.addEventListener('click', function() {
+                fetchAndLoadChart('7d', btn7d, [btn30d, btn90d]);
+            });
+        }
+
+        if (btn30d) {
+            btn30d.addEventListener('click', function() {
+                fetchAndLoadChart('30d', btn30d, [btn7d, btn90d]);
+            });
+        }
+
+        if (btn90d) {
+            btn90d.addEventListener('click', function() {
+                fetchAndLoadChart('90d', btn90d, [btn7d, btn30d]);
+            });
+        }
+    }
+
+    // ==========================================
+    // SPRINT 1: TODAY'S WORK & TASKS/REPORTS JS
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set date string
+        const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const dateEl = document.getElementById('today-date-string');
+        if (dateEl) dateEl.textContent = dateStr;
+
+        // Toggle task status
+        document.querySelectorAll('.task-complete-checkbox').forEach(cb => {
+            cb.addEventListener('change', function() {
+                const taskId = this.getAttribute('data-id');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                fetch(`/api/tasks/toggle/${taskId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // Apply styling on today checklist row if it exists
+                        const row = document.getElementById(`task-row-${taskId}`);
+                        if (row) {
+                            if (data.status === 'completed') {
+                                row.style.opacity = '0.5';
+                                row.style.textDecoration = 'line-through';
+                            } else {
+                                row.style.opacity = '1';
+                                row.style.textDecoration = 'none';
+                            }
+                        }
+                        
+                        // Apply styling on My Tasks table row if it exists
+                        const tableRows = document.querySelectorAll('.task-table-row');
+                        tableRows.forEach(tr => {
+                            const trCb = tr.querySelector('.task-complete-checkbox');
+                            if (trCb && trCb.getAttribute('data-id') == taskId) {
+                                tr.setAttribute('data-status', data.status);
+                                trCb.checked = (data.status === 'completed');
+                            }
+                        });
+                        applyTaskFilters();
+                    } else {
+                        window.showToast ? showToast('Failed to update task: ' + data.error, 'danger') : alert(data.error);
+                        this.checked = !this.checked;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    window.showToast ? showToast('An error occurred updating the task.', 'danger') : alert('An error occurred.');
+                    this.checked = !this.checked;
+                });
+            });
+        });
+
+        // Filter campaigns dropdown by project client selection
+        function setupClientCampaignFiltering(projectSelectId, campaignSelectId) {
+            const pSelect = document.getElementById(projectSelectId);
+            const cSelect = document.getElementById(campaignSelectId);
+            if (!pSelect || !cSelect) return;
+            
+            const originalOptions = Array.from(cSelect.options);
+            
+            pSelect.addEventListener('change', function() {
+                const selectedProject = this.value;
+                cSelect.innerHTML = '';
+                
+                // Re-add default option
+                cSelect.appendChild(originalOptions[0]);
+                
+                originalOptions.forEach(opt => {
+                    if (opt.value && opt.getAttribute('data-project') === selectedProject) {
+                        cSelect.appendChild(opt);
+                    }
+                });
+                cSelect.value = '';
+            });
+        }
+        setupClientCampaignFiltering('task-project', 'task-campaign');
+        setupClientCampaignFiltering('report-project', 'report-campaign');
+
+        // Task filter buttons click handler
+        let currentTaskFilter = 'all';
+        document.querySelectorAll('.task-filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.task-filter-btn').forEach(b => {
+                    b.classList.remove('active');
+                    b.setAttribute('aria-pressed', 'false');
+                });
+                this.classList.add('active');
+                this.setAttribute('aria-pressed', 'true');
+                currentTaskFilter = this.getAttribute('data-filter');
+                applyTaskFilters();
+            });
+        });
+
+        function taskMatchesFilter(status, archived, filter) {
+            if (filter === 'all') return !archived;
+            if (filter === 'pending') return status === 'pending' && !archived;
+            if (filter === 'completed') return status === 'completed' && !archived;
+            if (filter === 'archived') return archived;
+            return true;
+        }
+
+        function updateTaskFilterCounts() {
+            const rows = document.querySelectorAll('.task-table-row');
+            const counts = { all: 0, pending: 0, completed: 0, archived: 0 };
+            rows.forEach(row => {
+                const status = row.getAttribute('data-status');
+                const archived = row.getAttribute('data-archived') === 'true';
+                ['all', 'pending', 'completed', 'archived'].forEach(f => {
+                    if (taskMatchesFilter(status, archived, f)) counts[f]++;
+                });
+            });
+            document.querySelectorAll('.task-filter-count').forEach(el => {
+                const key = el.getAttribute('data-count');
+                if (key in counts) el.textContent = counts[key];
+            });
+        }
+
+        function applyTaskFilters() {
+            const searchVal = (document.getElementById('task-search-input')?.value || '').toLowerCase().trim();
+            const rows = document.querySelectorAll('.task-table-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const status = row.getAttribute('data-status');
+                const archived = row.getAttribute('data-archived') === 'true';
+                const title = row.getAttribute('data-title') || '';
+                const desc = row.getAttribute('data-desc') || '';
+
+                const matchesFilter = taskMatchesFilter(status, archived, currentTaskFilter);
+                const matchesSearch = !searchVal || title.includes(searchVal) || desc.includes(searchVal);
+
+                if (matchesFilter && matchesSearch) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Toggle the empty state when nothing is visible
+            const emptyState = document.getElementById('tasks-empty-state');
+            if (emptyState) emptyState.style.display = visibleCount === 0 ? '' : 'none';
+
+            updateTaskFilterCounts();
+        }
+
+        // Initialize counts on load
+        updateTaskFilterCounts();
+
+        const searchInput = document.getElementById('task-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', applyTaskFilters);
+        }
+
+        // Global functions for task actions
+        window.archiveTask = function(taskId) {
+            if (!confirm('Are you sure you want to archive this task?')) return;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            fetch(`/api/tasks/archive/${taskId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const row = document.getElementById(`task-row-${taskId}`);
+                    if (row) row.remove();
+                    
+                    const tableRows = document.querySelectorAll('.task-table-row');
+                    tableRows.forEach(tr => {
+                        const trCb = tr.querySelector('.task-complete-checkbox');
+                        if (trCb && trCb.getAttribute('data-id') == taskId) {
+                            tr.setAttribute('data-archived', 'true');
+                        }
+                    });
+                    applyTaskFilters();
+                    if (window.showToast) showToast('Task archived.', 'success');
+                } else {
+                    window.showToast ? showToast('Failed to archive task: ' + data.error, 'danger') : alert(data.error);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                window.showToast ? showToast('An error occurred archiving the task.', 'danger') : alert('An error occurred.');
+            });
+        };
+
+        window.handleCreateTask = function(event) {
+            event.preventDefault();
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creating...';
+            }
+
+            const title = document.getElementById('task-title').value;
+            const description = document.getElementById('task-desc').value;
+            const priority = document.getElementById('task-priority').value;
+            const due_date = document.getElementById('task-due-date').value;
+            const project_id = document.getElementById('task-project').value;
+            const campaign_id = document.getElementById('task-campaign').value;
+            
+            fetch('/api/tasks/new', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify({
+                    title, description, priority, due_date, project_id, campaign_id
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHtml; }
+                    window.showToast ? showToast('Failed to create task: ' + data.error, 'danger') : alert(data.error);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHtml; }
+                window.showToast ? showToast('An error occurred creating the task.', 'danger') : alert('An error occurred.');
+            });
+        };
+
+        window.handleCreateReport = function(event) {
+            event.preventDefault();
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            const title = document.getElementById('report-title').value;
+            const project_id = document.getElementById('report-project').value;
+            const campaign_id = document.getElementById('report-campaign').value;
+            
+            fetch('/api/reports/new', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify({
+                    title, project_id, campaign_id
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Start download immediately
+                    window.location.href = `/api/reports/export/${data.report.id}`;
+                    // Reload page after brief delay to show new report card
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    alert('Failed to compile report: ' + data.error);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('An error occurred.');
+            });
+        };
+    });
+</script>
+
+<!-- Real-time SEO Analyzer JS Engine -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const titleInput = document.getElementById('seo-input-title');
+        const keywordsInput = document.getElementById('seo-input-keywords');
+        const bodyInput = document.getElementById('seo-input-body');
+        const runBtn = document.getElementById('seo-run-btn');
+        
+        const emptyState = document.getElementById('seo-empty-state');
+        const resultsData = document.getElementById('seo-results-data');
+        
+        if (!runBtn) return;
+        
+        runBtn.addEventListener('click', function() {
+            const title = titleInput.value.trim();
+            const body = bodyInput.value.trim();
+            const keywordsRaw = keywordsInput.value.trim();
+            
+            if (!title || !body) {
+                alert("Please fill in the Copy Title and Content Body to run analysis.");
+                return;
+            }
+            
+            const keywords = keywordsRaw ? keywordsRaw.split(',').map(k => k.trim()).filter(k => k.length > 0) : [];
+            
+            // Execute analysis
+            const report = analyzeSEOText(title, body, keywords);
+            renderSEOResults(report);
+        });
+        
+        function countSyllablesInWord(word) {
+            word = word.toLowerCase().trim();
+            if (!word) return 0;
+            
+            const vowels = "aeiouy";
+            let count = 0;
+            
+            if (vowels.includes(word[0])) {
+                count += 1;
+            }
+            for (let i = 1; i < word.length; i++) {
+                if (vowels.includes(word[i]) && !vowels.includes(word[i - 1])) {
+                    count += 1;
+                }
+            }
+            if (word.endsWith("e")) {
+                count -= 1;
+            }
+            if (word.endsWith("le") && word.length > 2 && !vowels.includes(word[word.length - 3])) {
+                count += 1;
+            }
+            if (count <= 0) {
+                count = 1;
+            }
+            return count;
+        }
+        
+        function analyzeSEOText(title, body, targetKeywords) {
+            const bodyClean = body.replace(/[^\w\s-]/g, '');
+            const words = bodyClean.split(/\s+/).filter(w => w.trim().length > 0);
+            const totalWords = words.length;
+            
+            const sentences = body.split(/[.!?]+/).filter(s => s.trim().length > 0);
+            const totalSentences = Math.max(sentences.length, 1);
+            
+            let totalSyllables = 0;
+            words.forEach(w => {
+                totalSyllables += countSyllablesInWord(w);
+            });
+            
+            let readability = 0;
+            if (totalWords > 0) {
+                readability = 206.835 - 1.015 * (totalWords / totalSentences) - 84.6 * (totalSyllables / totalWords);
+                readability = Math.max(0, Math.min(100, Math.round(readability)));
+            }
+            
+            const h2Count = (body.match(/^##\s+.+$/gm) || []).length;
+            const h3Count = (body.match(/^###\s+.+$/gm) || []).length;
+            const totalHeadings = h2Count + h3Count;
+            
+            const keywordsReport = {};
+            let titleHasKeyword = false;
+            const titleLower = title.toLowerCase();
+            
+            targetKeywords.forEach(kw => {
+                const kwClean = kw.trim();
+                if (!kwClean) return;
+                
+                if (titleLower.includes(kwClean.toLowerCase())) {
+                    titleHasKeyword = true;
+                }
+                
+                const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp('\\b' + escapeRegExp(kwClean) + '\\b', 'gi');
+                const occurrences = (body.match(regex) || []).length;
+                
+                const density = totalWords > 0 ? (occurrences / totalWords * 100) : 0.0;
+                
+                let status = 'missing';
+                if (density > 3.0) status = 'stuffing';
+                else if (density >= 1.0) status = 'optimal';
+                else if (density > 0) status = 'low';
+                
+                keywordsReport[kwClean] = {
+                    count: occurrences,
+                    density: parseFloat(density.toFixed(2)),
+                    status: status
+                };
+            });
+            
+            let seoScore = 0;
+            const suggestions = [];
+            
+            if (totalWords >= 1000) seoScore += 20;
+            else if (totalWords >= 600) seoScore += 15;
+            else if (totalWords >= 300) seoScore += 10;
+            else {
+                seoScore += 5;
+                suggestions.push(`Content is short (${totalWords} words). Write at least 600–1000 words.`);
+            }
+            
+            if (readability >= 60 && readability <= 85) {
+                seoScore += 20;
+            } else if (readability >= 40) {
+                seoScore += 15;
+                suggestions.push(`Readability ease is fair (${readability}). Simplify complex sentences.`);
+            } else {
+                seoScore += 8;
+                suggestions.push(`Readability index is low (${readability}). Break down paragraphs.`);
+            }
+            
+            if (totalHeadings >= 3) seoScore += 20;
+            else if (totalHeadings >= 1) {
+                seoScore += 10;
+                suggestions.push("Weak heading structure. Integrate H2/H3 subheadings.");
+            } else {
+                seoScore += 0;
+                suggestions.push("No H2/H3 headings found. Structure content with markdown hashes.");
+            }
+            
+            if (titleHasKeyword) seoScore += 20;
+            else {
+                seoScore += 5;
+                suggestions.push("Primary keyword missing from Title.");
+            }
+            
+            if (targetKeywords.length > 0) {
+                let optimalCount = 0;
+                Object.keys(keywordsReport).forEach(k => {
+                    if (keywordsReport[k].status === 'optimal') optimalCount++;
+                    
+                    if (keywordsReport[k].status === 'missing') {
+                        suggestions.push(`Keyword '${k}' is missing. Inject it naturally.`);
+                    } else if (keywordsReport[k].status === 'low') {
+                        suggestions.push(`Keyword '${k}' density is low (${keywordsReport[k].density}%). Use it 1-2 more times.`);
+                    } else if (keywordsReport[k].status === 'stuffing') {
+                        suggestions.push(`Keyword '${k}' density is high (${keywordsReport[k].density}%). Reduce occurrences.`);
+                    }
+                });
+                const ratio = optimalCount / targetKeywords.length;
+                seoScore += Math.round(ratio * 20);
+            } else {
+                seoScore += 10;
+                suggestions.push("No target keywords specified. Add terms to audit density.");
+            }
+            
+            return {
+                seoScore: seoScore,
+                readability: readability,
+                wordCount: totalWords,
+                headingsCount: totalHeadings,
+                keywordsReport: keywordsReport,
+                suggestions: suggestions
+            };
+        }
+        
+        function renderSEOResults(report) {
+            emptyState.classList.add('d-none');
+            resultsData.classList.remove('d-none');
+            
+            drawGauge('seoScoreCanvas', report.seoScore, report.seoScore >= 80 ? '#34d399' : (report.seoScore >= 50 ? '#f59e0b' : '#f87171'));
+            document.getElementById('seo-score-num').textContent = report.seoScore;
+            
+            drawGauge('readabilityScoreCanvas', report.readability, '#2dd4bf');
+            document.getElementById('seo-readability-num').textContent = report.readability;
+            
+            document.getElementById('seo-word-count').textContent = report.wordCount;
+            document.getElementById('seo-headings-count').textContent = report.headingsCount;
+            
+            const tbody = document.getElementById('seo-keywords-table-body');
+            tbody.innerHTML = '';
+            
+            const kws = Object.keys(report.keywordsReport);
+            if (kws.length > 0) {
+                kws.forEach(k => {
+                    const row = report.keywordsReport[k];
+                    let badgeClass = 'bg-secondary text-secondary';
+                    let badgeLabel = 'Missing';
+                    
+                    if (row.status === 'optimal') { badgeClass = 'badge-email text-success'; badgeLabel = 'Optimal'; }
+                    else if (row.status === 'low') { badgeClass = 'badge-blog text-warning'; badgeLabel = 'Low'; }
+                    else if (row.status === 'stuffing') { badgeClass = 'badge-product_review text-danger'; badgeLabel = 'Stuffing'; }
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="text-white fw-semibold">${k}</td>
+                            <td>${row.count} times</td>
+                            <td>${row.density}%</td>
+                            <td class="text-end">
+                                <span class="badge-custom ${badgeClass}" style="padding: 0.15rem 0.45rem; font-size: 0.7rem;"><i class="bi bi-circle-fill me-1" style="font-size: 0.4rem;"></i>${badgeLabel}</span>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-2 text-secondary small">No keywords configured</td></tr>';
+            }
+            
+            const list = document.getElementById('seo-suggestions-list');
+            list.innerHTML = '';
+            
+            if (report.suggestions.length > 0) {
+                report.suggestions.forEach(s => {
+                    list.innerHTML += `
+                        <li class="d-flex align-items-start text-secondary">
+                            <span class="text-warning me-2" style="font-size: 0.75rem;"><i class="bi bi-info-circle-fill"></i></span>
+                            <span class="small" style="line-height: 1.4; font-size: 0.7rem;">${s}</span>
+                        </li>
+                    `;
+                });
+            } else {
+                list.innerHTML = `
+                    <li class="text-center py-3 text-success">
+                        <i class="bi bi-check-circle-fill fs-4"></i>
+                        <h6 class="mt-2 mb-1 text-white">Fully Optimized!</h6>
+                    </li>
+                `;
+            }
+        }
+        
+        function drawGauge(canvasId, value, strokeColor) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            
+            const isLightTheme = document.documentElement.getAttribute('data-theme') === 'light';
+            const ctx = canvas.getContext('2d');
+            const x = canvas.width / 2;
+            const y = canvas.height / 2;
+            const radius = 18;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = isLightTheme ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.05)';
+            ctx.stroke();
+            
+            ctx.beginPath();
+            const startAngle = -0.5 * Math.PI;
+            const endAngle = startAngle + (value / 100) * 2 * Math.PI;
+            ctx.arc(x, y, radius, startAngle, endAngle, false);
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+        }
+    });
+</script>
+
+{% endblock %}

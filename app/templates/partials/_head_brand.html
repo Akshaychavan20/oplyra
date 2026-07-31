@@ -1,0 +1,21 @@
+{# Oplyra — favicon, PWA, SEO & social metadata #}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="icon" href="{{ url_for('static', filename='img/oplyra-symbol.svg') }}" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32x32.png') }}">
+<link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+<link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+<meta name="application-name" content="Oplyra">
+<meta name="apple-mobile-web-app-title" content="Oplyra">
+<meta name="theme-color" content="#0B1220" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#030712" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Oplyra — the daily operating system for solo performance marketers. Plan, create, and scale campaigns with AI.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Oplyra">
+<meta property="og:title" content="{% block og_title %}Oplyra — Performance Marketing Powered by AI{% endblock %}">
+<meta property="og:description" content="Plan, create, optimize and scale your entire marketing content workflow from one intelligent platform.">
+<meta property="og:image" content="{{ url_for('static', filename='img/oplyra-logo.svg', _external=True) }}">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Oplyra — Performance Marketing Powered by AI">
+<meta name="twitter:description" content="Plan, create, optimize and scale your entire marketing content workflow from one intelligent platform.">
+<meta name="twitter:image" content="{{ url_for('static', filename='img/oplyra-logo.svg', _external=True) }}">

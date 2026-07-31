@@ -1,0 +1,132 @@
+{# Files — top-level DAM surface for freelancers #}
+<div id="panel-files" class="tab-panel tab-hidden">
+    <div class="files-hub">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+            <div>
+                <h2 class="text-white mb-1"><i class="bi bi-folder2-open text-indigo me-2"></i>Files</h2>
+                <p class="text-secondary mb-0" style="font-size: 0.8rem;">
+                    Upload creatives, briefs, and exports. Organize by client as you grow.
+                </p>
+            </div>
+            <label class="btn btn-primary-custom btn-sm mb-0" for="files-upload-input">
+                <i class="bi bi-cloud-arrow-up me-1"></i>Upload
+            </label>
+            <input type="file" id="files-upload-input" class="d-none" multiple>
+        </div>
+
+        <div class="glass-card p-4 mb-4 files-dropzone" id="files-dropzone">
+            <div class="text-center py-3">
+                <i class="bi bi-cloud-arrow-up display-6 text-indigo opacity-75"></i>
+                <p class="text-white mt-2 mb-1">Drag &amp; drop files here</p>
+                <p class="text-secondary small mb-0">Or use Upload. Files attach to your account library.</p>
+            </div>
+            <div id="files-upload-status" class="text-center small mt-2 d-none"></div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <input type="search" id="files-search" class="form-control form-control-custom" style="max-width:280px" placeholder="Search files…">
+        </div>
+
+        <h6 class="text-white mb-3">Recent uploads</h6>
+        <div class="row g-3" id="files-grid">
+            {% if recent_assets %}
+                {% for asset in recent_assets %}
+                <div class="col-md-4 col-lg-3 files-card-wrap" data-name="{{ asset.name|lower }}">
+                    <div class="glass-card p-3 h-100">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-file-earmark-fill text-indigo fs-4"></i>
+                            <div class="min-w-0">
+                                <div class="text-white text-truncate small fw-semibold">{{ asset.name }}</div>
+                                <div class="text-secondary" style="font-size:0.65rem;">
+                                    {{ asset.file_type or 'file' }}
+                                    {% if asset.created_at %} · {{ asset.created_at.strftime('%b %d') }}{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2 d-flex gap-2">
+                            <a class="btn btn-secondary-custom btn-sm py-0 px-2" href="{{ url_for('enterprise.download_asset', asset_id=asset.id) }}">Download</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12">
+                    <div class="glass-card p-4 text-center">
+                        <p class="text-white mb-1">No files yet</p>
+                        <p class="text-secondary small mb-0">Upload your first creative or brief to get started.</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var input = document.getElementById('files-upload-input');
+    var drop = document.getElementById('files-dropzone');
+    var statusEl = document.getElementById('files-upload-status');
+    var search = document.getElementById('files-search');
+
+    function csrf() {
+        var m = document.querySelector('meta[name="csrf-token"]');
+        return m ? m.getAttribute('content') : '';
+    }
+
+    function setStatus(msg, ok) {
+        if (!statusEl) return;
+        statusEl.classList.remove('d-none', 'text-success', 'text-danger');
+        statusEl.classList.add(ok ? 'text-success' : 'text-danger');
+        statusEl.textContent = msg;
+    }
+
+    function uploadFiles(fileList) {
+        if (!fileList || !fileList.length) return;
+        var chain = Promise.resolve();
+        Array.prototype.forEach.call(fileList, function (file) {
+            chain = chain.then(function () {
+                var fd = new FormData();
+                fd.append('file', file);
+                return fetch('/api/v1/dam/assets/upload', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrf() },
+                    body: fd,
+                    credentials: 'same-origin'
+                }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); });
+            }).then(function (res) {
+                if (!res.ok || !res.j.success) {
+                    throw new Error((res.j && res.j.error) || 'Upload failed');
+                }
+            });
+        });
+        chain.then(function () {
+            setStatus('Upload complete. Refreshing…', true);
+            setTimeout(function () { window.location.hash = '#files'; window.location.reload(); }, 600);
+        }).catch(function (err) {
+            setStatus(err.message || 'Upload failed', false);
+        });
+    }
+
+    if (input) input.addEventListener('change', function () { uploadFiles(input.files); });
+    if (drop) {
+        ['dragenter', 'dragover'].forEach(function (ev) {
+            drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('files-drop-active'); });
+        });
+        ['dragleave', 'drop'].forEach(function (ev) {
+            drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('files-drop-active'); });
+        });
+        drop.addEventListener('drop', function (e) {
+            uploadFiles(e.dataTransfer && e.dataTransfer.files);
+        });
+    }
+    if (search) {
+        search.addEventListener('input', function () {
+            var q = search.value.trim().toLowerCase();
+            document.querySelectorAll('.files-card-wrap').forEach(function (card) {
+                var name = card.getAttribute('data-name') || '';
+                card.style.display = (!q || name.indexOf(q) !== -1) ? '' : 'none';
+            });
+        });
+    }
+})();
+</script>

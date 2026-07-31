@@ -1,0 +1,571 @@
+{% extends "base.html" %}
+
+{% block title %}Content Library - Oplyra{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Content Library custom adjustments */
+    .library-card {
+        background: rgba(18, 18, 28, 0.55);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+    }
+    
+    .library-card:hover {
+        border-color: rgba(99, 102, 241, 0.25);
+        transform: translateY(-2px);
+        box-shadow: 0 12px 30px -15px rgba(0, 0, 0, 0.6);
+    }
+    
+    .library-card.selected {
+        border-color: #6366f1 !important;
+        background: rgba(99, 102, 241, 0.06);
+    }
+    
+    /* Sticky Bulk Bar */
+    .bulk-actions-bar {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%) translateY(120px);
+        background: rgba(15, 15, 25, 0.85);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 100px;
+        padding: 0.75rem 2rem;
+        z-index: 1000;
+        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.8);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+    
+    .bulk-actions-bar.active {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .form-check-input-custom {
+        width: 1.15rem;
+        height: 1.15rem;
+        background-color: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .form-check-input-custom:checked {
+        background-color: #6366f1;
+        border-color: #6366f1;
+    }
+    
+    .fav-btn {
+        transition: transform 0.2s ease;
+    }
+    .fav-btn:hover {
+        transform: scale(1.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-library-page">
+    <!-- Header tabs navigation: Switch between Generator and Library -->
+    <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-3 border-theme-subtle">
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('content.content_status') }}" class="btn btn-outline-secondary-custom px-4 py-1.5 rounded-pill">
+                <i class="bi bi-magic me-1.5"></i>AI Studio
+            </a>
+            <a href="{{ url_for('content.content_library') }}" class="btn btn-primary-custom px-4 py-1.5 rounded-pill">
+                <i class="bi bi-folder2-open me-1.5"></i>Content Library
+            </a>
+        </div>
+        <div>
+            <h2 class="text-white text-md fw-bold mb-0">Professional Content Library</h2>
+        </div>
+    </div>
+
+    <!-- Filters & Search Toolbar -->
+    <div class="glass-card p-3.5 mb-4">
+        <form method="GET" action="{{ url_for('content.content_library') }}" id="filter-form">
+            <!-- Hidden inputs to preserve active sub-tabs status -->
+            <input type="hidden" name="status" id="filter-status" value="{{ selected_status }}">
+            <input type="hidden" name="favorites" id="filter-favorites" value="{% if favorites_only %}true{% endif %}">
+            
+            <div class="row g-3 align-items-center">
+                <!-- Search bar -->
+                <div class="col-lg-4 col-md-6">
+                    <div style="position: relative;">
+                        <i class="bi bi-search" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 0.85rem;"></i>
+                        <input type="text" name="q" class="form-control form-control-custom ps-5 py-2 text-xs" placeholder="Search copy title, text snippet..." value="{{ search_query }}">
+                    </div>
+                </div>
+
+                <!-- Client Workspace Filter -->
+                <div class="col-lg-2.5 col-md-6">
+                    <select name="project_id" class="form-select form-control-custom py-2 text-xs" onchange="document.getElementById('filter-form').submit()">
+                        <option value="">All Clients (Workspaces)</option>
+                        {% for project in all_projects %}
+                            <option value="{{ project.id }}" {% if selected_project == project.id %}selected{% endif %}>{{ project.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Content Type Filter -->
+                <div class="col-lg-2 col-md-6">
+                    <select name="type" class="form-select form-control-custom py-2 text-xs" onchange="document.getElementById('filter-form').submit()">
+                        <option value="">All Content Types</option>
+                        <option value="blog" {% if selected_type == 'blog' %}selected{% endif %}>Blog Post</option>
+                        <option value="email" {% if selected_type == 'email' %}selected{% endif %}>Email Campaign</option>
+                        <option value="facebook_post" {% if selected_type == 'facebook_post' %}selected{% endif %}>Facebook Caption</option>
+                        <option value="product_review" {% if selected_type == 'product_review' %}selected{% endif %}>Product Review</option>
+                        <option value="carousel" {% if selected_type == 'carousel' %}selected{% endif %}>Carousel Frame</option>
+                        <option value="video_script" {% if selected_type == 'video_script' %}selected{% endif %}>Video Script</option>
+                        <option value="image_prompt" {% if selected_type == 'image_prompt' %}selected{% endif %}>Image Prompt</option>
+                        <option value="ad_copy" {% if selected_type == 'ad_copy' %}selected{% endif %}>Ad Copywriter</option>
+                    </select>
+                </div>
+
+                <!-- Sort By -->
+                <div class="col-lg-2.5 col-md-6">
+                    <select name="sort_by" class="form-select form-control-custom py-2 text-xs" onchange="document.getElementById('filter-form').submit()">
+                        <option value="newest" {% if selected_sort == 'newest' %}selected{% endif %}>Sort by: Newest Updated</option>
+                        <option value="oldest" {% if selected_sort == 'oldest' %}selected{% endif %}>Sort by: Oldest Created</option>
+                        <option value="title_asc" {% if selected_sort == 'title_asc' %}selected{% endif %}>Sort by: Alphabetical A-Z</option>
+                        <option value="title_desc" {% if selected_sort == 'title_desc' %}selected{% endif %}>Sort by: Alphabetical Z-A</option>
+                        <option value="seo_high" {% if selected_sort == 'seo_high' %}selected{% endif %}>Sort by: SEO Score (High-Low)</option>
+                        <option value="seo_low" {% if selected_sort == 'seo_low' %}selected{% endif %}>Sort by: SEO Score (Low-High)</option>
+                    </select>
+                </div>
+
+                <div class="col-lg-1 col-md-6 d-grid">
+                    <button type="submit" class="btn btn-secondary-custom py-2 text-xs font-semibold">Filter</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Category Folders Sub-tabs -->
+    <div class="d-flex align-items-center justify-content-between mb-3.5">
+        <ul class="nav nav-pills border-0 gap-1.5">
+            <li class="nav-item">
+                <button type="button" class="nav-link py-1.5 px-3 rounded-pill text-xs font-semibold btn-tab-filter {% if not selected_status and not favorites_only %}active bg-indigo text-white{% else %}text-slate-400 bg-black bg-opacity-25 hover-primary{% endif %}" onclick="selectStatusTab('')">
+                    All Files
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" class="nav-link py-1.5 px-3 rounded-pill text-xs font-semibold btn-tab-filter {% if selected_status == 'draft' %}active bg-indigo text-white{% else %}text-slate-400 bg-black bg-opacity-25 hover-primary{% endif %}" onclick="selectStatusTab('draft')">
+                    Drafts
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" class="nav-link py-1.5 px-3 rounded-pill text-xs font-semibold btn-tab-filter {% if selected_status == 'published' %}active bg-indigo text-white{% else %}text-slate-400 bg-black bg-opacity-25 hover-primary{% endif %}" onclick="selectStatusTab('published')">
+                    Published
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" class="nav-link py-1.5 px-3 rounded-pill text-xs font-semibold btn-tab-filter {% if favorites_only %}active bg-indigo text-white{% else %}text-slate-400 bg-black bg-opacity-25 hover-primary{% endif %}" onclick="selectFavTab()">
+                    Favorites <i class="bi bi-star-fill text-warning ms-1" style="font-size: 0.7rem;"></i>
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" class="nav-link py-1.5 px-3 rounded-pill text-xs font-semibold btn-tab-filter {% if selected_status == 'archived' %}active bg-indigo text-white{% else %}text-slate-400 bg-black bg-opacity-25 hover-primary{% endif %}" onclick="selectStatusTab('archived')">
+                    Archived
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" class="nav-link py-1.5 px-3 rounded-pill text-xs font-semibold btn-tab-filter {% if selected_status == 'deleted' %}active bg-danger text-white{% else %}text-slate-400 bg-black bg-opacity-25 hover-primary{% endif %}" onclick="selectStatusTab('deleted')">
+                    Trash <i class="bi bi-trash-fill ms-1" style="font-size: 0.75rem;"></i>
+                </button>
+            </li>
+        </ul>
+        
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-secondary-custom btn-xs font-semibold text-xs py-1.5 px-3" onclick="toggleSelectAll()">
+                <i class="bi bi-check-all me-1"></i>Select All Page
+            </button>
+        </div>
+    </div>
+
+    <!-- Contents Grid -->
+    <div class="row g-3.5 mb-5">
+        {% if contents %}
+            {% for content in contents %}
+                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12" id="card-container-{{ content.id }}">
+                    <div class="library-card p-4 d-flex flex-column h-100 justify-content-between" id="content-card-{{ content.id }}">
+                        <div>
+                            <!-- Header status and selection row -->
+                            <div class="d-flex align-items-start justify-content-between mb-3.5">
+                                <div class="d-flex align-items-center gap-2">
+                                    <input type="checkbox" class="form-check-input-custom select-content-checkbox" data-id="{{ content.id }}" onchange="handleCardSelection(this)">
+                                    <span class="badge bg-indigo bg-opacity-15 text-indigo border border-indigo border-opacity-25 text-uppercase px-2 py-0.5 rounded font-bold" style="font-size: 0.6rem;">{{ content.type }}</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <!-- Favorite Toggle -->
+                                    <button type="button" class="btn p-0 border-0 bg-transparent fav-btn" onclick="toggleFavorite({{ content.id }}, this)">
+                                        <i class="bi {% if content.is_favorite %}bi-star-fill text-warning{% else %}bi-star text-slate-500{% endif %}" style="font-size: 0.95rem;"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Title and body snippet -->
+                            <h4 class="text-white text-xs font-bold leading-snug mb-1.5 block text-truncate" title="{{ content.title }}">{{ content.title }}</h4>
+                            <p class="text-slate-400 leading-relaxed text-[11px] mb-3 line-clamp-3" style="max-height: 52px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                {{ content.body }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <!-- Meta specs row -->
+                            <div class="d-flex align-items-center justify-content-between text-[10px] text-slate-500 font-mono mb-3 border-top pt-2.5" style="border-color: rgba(255,255,255,0.03) !important;">
+                                <span><i class="bi bi-card-text me-1"></i>{{ content.body.split()|length }} words</span>
+                                <span><i class="bi bi-clock me-1"></i>{{ content.updated_at.strftime('%b %d, %Y') }}</span>
+                            </div>
+
+                            <!-- Action button row -->
+                            <div class="d-flex align-items-center justify-content-between">
+                                <a href="{{ url_for('content.view_content', content_id=content.id) }}" class="btn btn-secondary-custom btn-xs font-semibold py-1.5 px-3">
+                                    <i class="bi bi-folder-symlink me-1"></i>Open Copy
+                                </a>
+                                {% if content.seo_analysis %}
+                                    <div class="d-flex align-items-center gap-1.5">
+                                        <span class="text-[10px] text-slate-400">SEO Score:</span>
+                                        <span class="badge rounded-pill {% if content.seo_analysis.seo_score >= 80 %}bg-success{% elif content.seo_analysis.seo_score >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="font-size: 0.65rem; padding: 0.2rem 0.5rem;">
+                                            {{ content.seo_analysis.seo_score }}
+                                        </span>
+                                    </div>
+                                {% else %}
+                                    <span class="text-[9px] text-slate-500 italic"><i class="bi bi-graph-up me-1"></i>Not analyzed</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <!-- Empty State -->
+            <div class="col-12 text-center py-5">
+                <div class="glass-card p-5 max-w-lg mx-auto" style="max-width: 480px;">
+                    <i class="bi bi-folder2-open text-slate-600 display-4 mb-3 d-block"></i>
+                    <h5 class="text-white fw-bold mb-2">No Copywriting Assets Found</h5>
+                    <p class="text-secondary text-xs mb-4">No content matches the selected filters or search parameters. Create or import your first workspace copy.</p>
+                    <a href="{{ url_for('content.content_status') }}" class="btn btn-primary-custom btn-sm px-4 py-2">
+                        <i class="bi bi-plus-circle me-1.5"></i>Create Copy Now
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination and pagination.pages > 1 %}
+        <nav aria-label="Library page navigation" class="mb-5">
+            <ul class="pagination justify-content-center pagination-custom">
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('content.content_library', page=pagination.prev_num, q=search_query, type=selected_type, status=selected_status, favorites=favorites_only, project_id=selected_project, sort_by=selected_sort) }}" tabindex="-1" aria-disabled="true"><i class="bi bi-chevron-left"></i></a>
+                </li>
+                {% for page_num in pagination.iter_pages() %}
+                    {% if page_num %}
+                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('content.content_library', page=page_num, q=search_query, type=selected_type, status=selected_status, favorites=favorites_only, project_id=selected_project, sort_by=selected_sort) }}">{{ page_num }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('content.content_library', page=pagination.next_num, q=search_query, type=selected_type, status=selected_status, favorites=favorites_only, project_id=selected_project, sort_by=selected_sort) }}"><i class="bi bi-chevron-right"></i></a>
+                </li>
+            </ul>
+        </nav>
+    {% endif %}
+</div>
+
+<!-- Floating Bulk Action Bar -->
+<div class="bulk-actions-bar" id="bulk-bar">
+    <div class="text-white text-xs font-semibold">
+        <span class="text-indigo-400 fw-bold" id="bulk-count">0</span> items selected
+    </div>
+    
+    <div class="vr bg-slate-800" style="width: 1px; height: 1.5rem; opacity: 0.35;"></div>
+
+    <div class="d-flex align-items-center gap-2">
+        {% if selected_status == 'deleted' %}
+            <!-- Actions specific to trash bin -->
+            <button type="button" class="btn btn-secondary-custom btn-xs font-semibold py-1.5 px-3 text-success" onclick="executeBulkAction('restore')">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Bulk Restore
+            </button>
+            <button type="button" class="btn btn-outline-danger btn-xs font-semibold py-1.5 px-3" onclick="executeBulkAction('permanent_delete')">
+                <i class="bi bi-shield-x me-1"></i>Permanent Delete
+            </button>
+        {% else %}
+            <!-- Normal workspace actions -->
+            <button type="button" class="btn btn-secondary-custom btn-xs font-semibold py-1.5 px-3 text-warning" onclick="executeBulkAction('favorite')">
+                <i class="bi bi-star-fill me-1"></i>Favorite
+            </button>
+            
+            <button type="button" class="btn btn-secondary-custom btn-xs font-semibold py-1.5 px-3" data-bs-toggle="modal" data-bs-target="#bulkMoveModal">
+                <i class="bi bi-folder-symlink me-1"></i>Move
+            </button>
+
+            <!-- Bulk Export Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-secondary-custom btn-xs font-semibold py-1.5 px-3 dropdown-toggle" type="button" id="bulkExportBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-download me-1"></i>Export ZIP
+                </button>
+                <ul class="dropdown-menu dropdown-menu-dark-custom" aria-labelledby="bulkExportBtn" style="font-size: 0.725rem;">
+                    <li><a class="dropdown-item dropdown-item-custom py-1.5" href="#" onclick="executeBulkExport('markdown')"><i class="bi bi-filetype-md text-indigo me-1.5"></i>Markdown ZIP</a></li>
+                    <li><a class="dropdown-item dropdown-item-custom py-1.5" href="#" onclick="executeBulkExport('docx')"><i class="bi bi-filetype-docx text-indigo me-1.5"></i>Word DOCX ZIP</a></li>
+                    <li><a class="dropdown-item dropdown-item-custom py-1.5" href="#" onclick="executeBulkExport('pdf')"><i class="bi bi-file-earmark-pdf text-indigo me-1.5"></i>PDF ZIP</a></li>
+                    <li><a class="dropdown-item dropdown-item-custom py-1.5" href="#" onclick="executeBulkExport('txt')"><i class="bi bi-filetype-txt text-indigo me-1.5"></i>Plain Text ZIP</a></li>
+                </ul>
+            </div>
+
+            <button type="button" class="btn btn-outline-danger btn-xs font-semibold py-1.5 px-3" onclick="executeBulkAction('delete')">
+                <i class="bi bi-trash-fill me-1"></i>Trash Delete
+            </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Bulk Move Modal Dialog -->
+<div class="modal fade" id="bulkMoveModal" tabindex="-1" aria-labelledby="bulkMoveModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dark-custom" style="max-width: 400px;">
+        <div class="modal-content glass-card glass-modal p-3">
+            <div class="modal-header border-0 pb-1.5">
+                <h5 class="modal-title text-white text-xs font-bold uppercase tracking-wider" id="bulkMoveModalLabel">Move Selected Assets</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-3">
+                <div class="mb-3">
+                    <label for="bulk-move-project-select" class="form-label-custom">Select Destination Client Workspace *</label>
+                    <select id="bulk-move-project-select" class="form-select form-control-custom text-xs">
+                        {% for project in all_projects %}
+                            <option value="{{ project.id }}">{{ project.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-1.5 gap-2">
+                <button type="button" class="btn btn-secondary-custom py-1.5 px-3 text-xs" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary-custom py-1.5 px-4 text-xs font-semibold" onclick="executeBulkMove()">Confirm Move</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedIds = [];
+
+    // Toggles single card selection state
+    function handleCardSelection(checkbox) {
+        const id = parseInt(checkbox.getAttribute('data-id'));
+        const card = document.getElementById(`content-card-${id}`);
+        
+        if (checkbox.checked) {
+            if (!selectedIds.includes(id)) selectedIds.push(id);
+            if (card) card.classList.add('selected');
+        } else {
+            selectedIds = selectedIds.filter(item => item !== id);
+            if (card) card.classList.remove('selected');
+        }
+        
+        updateBulkBar();
+    }
+
+    // Toggle select all checkbox
+    function toggleSelectAll() {
+        const checkBoxes = document.querySelectorAll('.select-content-checkbox');
+        const allChecked = Array.from(checkBoxes).every(cb => cb.checked);
+        
+        checkBoxes.forEach(cb => {
+            cb.checked = !allChecked;
+            handleCardSelection(cb);
+        });
+    }
+
+    function updateBulkBar() {
+        const bulkBar = document.getElementById('bulk-bar');
+        const bulkCount = document.getElementById('bulk-count');
+        
+        if (selectedIds.length > 0) {
+            bulkCount.textContent = selectedIds.length;
+            bulkBar.classList.add('active');
+        } else {
+            bulkBar.classList.remove('active');
+        }
+    }
+
+    // Toggles status tabs
+    function selectStatusTab(status) {
+        document.getElementById('filter-status').value = status;
+        document.getElementById('filter-favorites').value = '';
+        document.getElementById('filter-form').submit();
+    }
+
+    // Toggle favorites filters
+    function selectFavTab() {
+        document.getElementById('filter-status').value = '';
+        document.getElementById('filter-favorites').value = 'true';
+        document.getElementById('filter-form').submit();
+    }
+
+    // AJAX single favorite toggle
+    function toggleFavorite(id, button) {
+        const star = button.querySelector('i');
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const action = star.classList.contains('bi-star') ? 'favorite' : 'unfavorite';
+        
+        fetch('/content/api/bulk-action', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({
+                action: action,
+                ids: [id]
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (action === 'favorite') {
+                    star.className = 'bi bi-star-fill text-warning';
+                    showToast("Added item to favorites", "success");
+                } else {
+                    star.className = 'bi bi-star text-slate-500';
+                    showToast("Removed item from favorites", "info");
+                }
+            } else {
+                showToast(data.error || "Failed to update favorite status", "danger");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showToast("Network error occurred", "danger");
+        });
+    }
+
+    // AJAX execute bulk actions
+    function executeBulkAction(action) {
+        if (selectedIds.length === 0) return;
+        
+        let confirmMsg = `Are you sure you want to perform this bulk action on ${selectedIds.length} items?`;
+        if (action === 'permanent_delete') confirmMsg = `WARNING: This will permanently delete ${selectedIds.length} items from the database! This cannot be undone.`;
+        
+        if (!confirm(confirmMsg)) return;
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch('/content/api/bulk-action', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({
+                action: action,
+                ids: selectedIds
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, "success");
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                showToast(data.error || "Failed to complete bulk action", "danger");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showToast("Network error occurred", "danger");
+        });
+    }
+
+    // AJAX execute bulk move
+    function executeBulkMove() {
+        const projectId = document.getElementById('bulk-move-project-select').value;
+        if (!projectId) return;
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch('/content/api/bulk-action', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({
+                action: 'move',
+                ids: selectedIds,
+                project_id: parseInt(projectId)
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Close modal
+            const modalElement = document.getElementById('bulkMoveModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) modalInstance.hide();
+            
+            if (data.success) {
+                showToast(data.message, "success");
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                showToast(data.error || "Failed to move assets", "danger");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showToast("Network error occurred", "danger");
+        });
+    }
+
+    // Bulk Export handler
+    function executeBulkExport(format) {
+        if (selectedIds.length === 0) return;
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch('/content/api/bulk-action', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({
+                action: 'export',
+                ids: selectedIds,
+                export_format: format
+            })
+        })
+        .then(response => {
+            if (response.ok) return response.blob();
+            throw new Error("Failed to export archive");
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `bulk_export_${format}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showToast("ZIP export started successfully!", "success");
+        })
+        .catch(err => {
+            console.error(err);
+            showToast("Failed to compile ZIP export archive", "danger");
+        });
+    }
+</script>
+{% endblock %}

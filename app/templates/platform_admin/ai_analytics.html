@@ -1,0 +1,263 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}AI Analytics · Platform Admin{% endblock %}
+{% block page_title %}AI Analytics{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+    {% for d in [7, 30, 90] %}
+    <a class="btn btn-sm {% if data.days == d %}btn-primary-custom{% else %}btn-secondary-custom{% endif %}"
+       href="{{ url_for('platform_admin.ai_analytics', days=d) }}">{{ d }}d</a>
+    {% endfor %}
+</div>
+
+<div class="pa-kpi-grid mb-3">
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Requests</div><div class="pa-metric-value pa-kpi-value">{{ data.total_requests }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Input tokens</div><div class="pa-metric-value pa-kpi-value">{{ data.input_tokens }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Output tokens</div><div class="pa-metric-value pa-kpi-value">{{ data.output_tokens }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Avg latency</div><div class="pa-metric-value pa-kpi-value">{{ data.avg_latency_ms }}<span class="pa-kpi-unit">ms</span></div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Total cost</div><div class="pa-metric-value pa-kpi-value">${{ '%.4f'|format(data.total_cost) }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Avg cost</div><div class="pa-metric-value pa-kpi-value">${{ '%.6f'|format(data.avg_cost) }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Error rate</div><div class="pa-metric-value pa-kpi-value">{{ data.error_rate }}%</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Fallback rate</div><div class="pa-metric-value pa-kpi-value">{{ data.fallback_rate }}%</div></div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-8">
+        <div class="glass-card pa-panel">
+            <h3>Daily requests &amp; cost</h3>
+            <canvas id="chart-requests" height="120"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="glass-card pa-panel mb-3">
+            <h3>Top models</h3>
+            <ul class="pa-list">
+                {% for name, count in data.models %}
+                <li><span>{{ name }}</span><strong>{{ count }}</strong></li>
+                {% else %}
+                <li><span class="text-secondary">No data</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="glass-card pa-panel">
+            <h3>Top agents</h3>
+            <ul class="pa-list">
+                {% for name, count in data.top_agents %}
+                <li><span>{{ name }}</span><strong>{{ count }}</strong></li>
+                {% else %}
+                <li><span class="text-secondary">No agent runs</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="glass-card pa-panel">
+            <h3>Provider usage</h3>
+            <canvas id="chart-providers" height="160"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="glass-card pa-panel">
+            <h3>Average latency (daily)</h3>
+            <canvas id="chart-latency" height="160"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="glass-card pa-panel">
+    <h3>Recent requests</h3>
+    <div class="table-responsive">
+        <table class="table table-custom pa-table mb-0">
+            <thead><tr><th>When</th><th>User</th><th>Provider</th><th>Model</th><th>Tokens</th><th>Cost</th><th>Latency</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for log in data.recent %}
+                <tr>
+                    <td>{{ log.created_at.strftime('%m-%d %H:%M') if log.created_at else '—' }}</td>
+                    <td>{{ log.user_id or '—' }}</td>
+                    <td>{{ log.provider }}</td>
+                    <td>{{ log.model_used }}</td>
+                    <td>{{ log.total_tokens }}</td>
+                    <td>${{ '%.6f'|format(log.calculated_cost or 0) }}</td>
+                    <td>{{ log.latency_ms }} ms</td>
+                    <td>{{ log.status }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-secondary">No AI requests in range.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const labels = {{ data.chart.labels|tojson }};
+    const requests = {{ data.chart.requests|tojson }};
+    const cost = {{ data.chart.cost|tojson }};
+    const latency = {{ data.chart.latency|tojson }};
+    const providers = {{ data.providers|tojson }};
+
+    var charts = [];
+
+    function hslToken(name, alpha) {
+        var raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        if (!raw) return null;
+        return alpha != null ? ('hsl(' + raw + ' / ' + alpha + ')') : ('hsl(' + raw + ')');
+    }
+
+    function chartTheme() {
+        if (window.OplyraTheme && typeof window.OplyraTheme.getChartTheme === 'function') {
+            return window.OplyraTheme.getChartTheme();
+        }
+        return {
+            tick: hslToken('--chart-tick') || hslToken('--text-muted'),
+            legend: hslToken('--chart-legend') || hslToken('--text-secondary'),
+            grid: hslToken('--chart-grid') || 'transparent',
+            tooltipBg: hslToken('--chart-tooltip-bg'),
+            tooltipTitle: hslToken('--chart-tooltip-title'),
+            tooltipBody: hslToken('--chart-tooltip-body')
+        };
+    }
+
+    function seriesColors() {
+        return {
+            primary: hslToken('--primary-hsl'),
+            success: hslToken('--success'),
+            warning: hslToken('--warning'),
+            danger: hslToken('--danger'),
+            info: hslToken('--info'),
+            primarySoft: hslToken('--primary-hsl', 0.55),
+            palette: [
+                hslToken('--primary-hsl'),
+                hslToken('--success'),
+                hslToken('--warning'),
+                hslToken('--danger'),
+                hslToken('--info'),
+                hslToken('--primary-hover-hsl')
+            ]
+        };
+    }
+
+    function destroyCharts() {
+        while (charts.length) {
+            var c = charts.pop();
+            try { c.destroy(); } catch (e) { /* ignore */ }
+        }
+    }
+
+    function renderCharts() {
+        if (!window.Chart) return;
+        destroyCharts();
+        var theme = chartTheme();
+        var colors = seriesColors();
+
+        charts.push(new Chart(document.getElementById('chart-requests'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Requests',
+                        data: requests,
+                        borderColor: colors.primary,
+                        backgroundColor: colors.primarySoft,
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Cost (USD)',
+                        data: cost,
+                        borderColor: colors.success,
+                        tension: 0.3,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        position: 'left',
+                        ticks: { color: theme.tick },
+                        grid: { color: theme.grid }
+                    },
+                    y1: {
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: theme.tick }
+                    },
+                    x: {
+                        ticks: { color: theme.tick, maxTicksLimit: 10 },
+                        grid: { color: theme.grid }
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: theme.legend } },
+                    tooltip: {
+                        backgroundColor: theme.tooltipBg,
+                        titleColor: theme.tooltipTitle,
+                        bodyColor: theme.tooltipBody
+                    }
+                }
+            }
+        }));
+
+        charts.push(new Chart(document.getElementById('chart-providers'), {
+            type: 'doughnut',
+            data: {
+                labels: providers.map(function(p) { return p[0]; }),
+                datasets: [{
+                    data: providers.map(function(p) { return p[1]; }),
+                    backgroundColor: colors.palette
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: theme.legend } },
+                    tooltip: {
+                        backgroundColor: theme.tooltipBg,
+                        titleColor: theme.tooltipTitle,
+                        bodyColor: theme.tooltipBody
+                    }
+                }
+            }
+        }));
+
+        charts.push(new Chart(document.getElementById('chart-latency'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Latency (ms)',
+                    data: latency,
+                    backgroundColor: colors.primarySoft,
+                    borderColor: colors.primary,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    x: { ticks: { color: theme.tick, maxTicksLimit: 8 }, grid: { color: theme.grid } },
+                    y: { ticks: { color: theme.tick }, grid: { color: theme.grid } }
+                },
+                plugins: {
+                    legend: { labels: { color: theme.legend } },
+                    tooltip: {
+                        backgroundColor: theme.tooltipBg,
+                        titleColor: theme.tooltipTitle,
+                        bodyColor: theme.tooltipBody
+                    }
+                }
+            }
+        }));
+    }
+
+    renderCharts();
+    window.addEventListener('oplyra:themechange', renderCharts);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}AI Providers · Platform Admin{% endblock %}
+{% block page_title %}AI Providers{% endblock %}
+{% block content %}
+<div class="glass-card pa-panel mb-3">
+    <div class="d-flex flex-wrap justify-content-between gap-2">
+        <div>
+            <h3 class="mb-1">Provider registry</h3>
+            <p class="text-secondary small mb-0">Read-only view of existing ProviderRegistry · default: <strong>{{ default_provider }}</strong></p>
+        </div>
+        <span class="pa-chip {% if health.checks.ai_providers.ok %}pa-chip-ok{% else %}pa-chip-warn{% endif %}">
+            API health · {{ health.checks.ai_providers.detail }}
+        </span>
+    </div>
+</div>
+
+<div class="row g-3">
+    {% for p in providers %}
+    <div class="col-md-6 col-xl-4">
+        <div class="glass-card pa-panel h-100">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <h3 class="mb-0">{{ p.get('name') or p.get('display_name') or p.get('id') or 'Provider' }}</h3>
+                {% if p.get('enabled') %}
+                <span class="pa-chip pa-chip-ok">Enabled</span>
+                {% else %}
+                <span class="pa-chip">Disabled</span>
+                {% endif %}
+            </div>
+            <ul class="pa-list">
+                <li><span>ID</span><strong>{{ p.get('id') or '—' }}</strong></li>
+                <li><span>Configured</span><strong>{{ p.get('configured') }}</strong></li>
+                <li><span>Mock key</span><strong>{{ p.get('mock') }}</strong></li>
+                <li><span>Models</span><strong>{{ p.models|length if p.get('models') else 0 }}</strong></li>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12"><div class="glass-card pa-panel text-secondary">No providers registered.</div></div>
+    {% endfor %}
+</div>
+
+<div class="glass-card pa-panel mt-3">
+    <h3>Failover / routing</h3>
+    <p class="text-secondary small mb-0">
+        Default provider and failover chain are controlled by existing AI Gateway config
+        (<code>AI_DEFAULT_PROVIDER</code>, routing rules). This console does not mutate provider secrets.
+    </p>
+</div>
+{% endblock %}

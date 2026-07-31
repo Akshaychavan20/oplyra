@@ -1,0 +1,176 @@
+# =============================================================================
+# Oplyra — production .gitignore
+# Python / Flask / VS Code / Cursor / Windows / macOS / Linux
+# =============================================================================
+
+# ----- Secrets & local env (NEVER commit) -----
+.env
+.env.*
+!.env.example
+!.env*.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+id_rsa*
+credentials.json
+client_secret*.json
+service-account*.json
+*-service-account.json
+.secrets/
+secrets/
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+.dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.cache/
+
+# ----- Virtual environments -----
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+virtualenv/
+
+# ----- Flask / local runtime -----
+instance/
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# ----- Logs -----
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ----- Uploads / exports / local data -----
+uploads/
+exports/
+backups/
+storage/
+object_storage/
+media/
+tmp/
+temp/
+.tmp/
+
+# ----- Local scratch / one-off scripts & dumps -----
+scratch/
+*.bak
+*.swp
+*.swo
+*~
+
+# ----- Node (if added later) -----
+node_modules/
+npm-debug.log
+yarn.lock
+package-lock.json
+.pnpm-store/
+
+# ----- IDE / editors -----
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+*.code-workspace
+
+# ----- Cursor -----
+.cursor/
+.cursorignore
+!.agents/
+
+# ----- OS -----
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.stackdump
+*.lnk
+
+# ----- Docker / local overrides -----
+docker-compose.override.yml
+.docker/
+
+# ----- Celery / Redis dumps -----
+celerybeat-schedule
+celerybeat.pid
+dump.rdb
+
+# ----- Database dumps -----
+*.sql
+*.sql.gz
+*.dump
+!migrations/**/*.py
+
+# ----- Generated / tooling -----
+.python-version
+.tool-versions
+*.orig
+*.rej
+oplyra-*.canvas.tsx

@@ -1,0 +1,44 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Health · Platform Admin{% endblock %}
+{% block page_title %}Health & Workers{% endblock %}
+{% block content %}
+<div class="row g-3">
+    <div class="col-md-5">
+        <div class="glass-card pa-panel">
+            <h3>Infrastructure</h3>
+            <ul class="pa-list">
+                <li><span>Redis</span><strong>{{ health.redis }}</strong></li>
+                <li><span>Storage</span><strong>{{ health.storage_provider }}</strong></li>
+                <li><span>Vector DB</span><strong>{{ health.vector_provider }}</strong></li>
+                <li><span>Embeddings</span><strong>{{ health.embedding_provider }}</strong></li>
+                <li><span>Celery eager</span><strong>{{ health.celery_eager }}</strong></li>
+                <li><span>Structured logs</span><strong>{{ health.structured_logging }}</strong></li>
+            </ul>
+            <a class="btn btn-secondary-custom btn-sm mt-2" href="/health" target="_blank" rel="noopener">Open /health JSON</a>
+        </div>
+    </div>
+    <div class="col-md-7">
+        <div class="glass-card pa-panel">
+            <h3>Recent background jobs</h3>
+            <div class="table-responsive">
+                <table class="table table-custom pa-table mb-0">
+                    <thead><tr><th>ID</th><th>Task</th><th>Status</th><th>Progress</th><th>Created</th></tr></thead>
+                    <tbody>
+                        {% for j in jobs %}
+                        <tr>
+                            <td>{{ j.id }}</td>
+                            <td>{{ j.task_name }}</td>
+                            <td>{{ j.status }}</td>
+                            <td>{{ j.progress }}%</td>
+                            <td>{{ j.created_at.strftime('%m-%d %H:%M') if j.created_at else '—' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-secondary">No jobs recorded.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

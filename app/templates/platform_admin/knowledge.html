@@ -1,0 +1,49 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Knowledge · Platform Admin{% endblock %}
+{% block page_title %}Knowledge Engine{% endblock %}
+{% block content %}
+<div class="pa-kpi-grid mb-3">
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Documents</div><div class="pa-metric-value pa-kpi-value">{{ data.documents }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Collections</div><div class="pa-metric-value pa-kpi-value">{{ data.collections }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Chunks</div><div class="pa-metric-value pa-kpi-value">{{ data.chunks }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Embeddings</div><div class="pa-metric-value pa-kpi-value">{{ data.embeddings }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Searches (7d)</div><div class="pa-metric-value pa-kpi-value">{{ data.searches_7d }}</div></div>
+    <div class="glass-card pa-metric pa-kpi"><div class="pa-metric-label pa-kpi-label">Vector provider</div><div class="pa-metric-value pa-kpi-value" style="font-size:1rem;">{{ data.vector_provider }}</div></div>
+</div>
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="glass-card pa-panel">
+            <h3>Top collections</h3>
+            <ul class="pa-list">
+                {% for c in data.top_collections %}
+                <li><span>{{ c.name }}</span><strong>{{ c.docs }} docs</strong></li>
+                {% else %}
+                <li><span class="text-secondary">No collections</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="glass-card pa-panel">
+            <h3>Recent documents</h3>
+            <div class="table-responsive">
+                <table class="table table-custom pa-table mb-0">
+                    <thead><tr><th>Title</th><th>Type</th><th>Status</th><th>Chunks</th></tr></thead>
+                    <tbody>
+                        {% for d in data.recent_docs %}
+                        <tr>
+                            <td>{{ d.title }}</td>
+                            <td>{{ d.doc_type }}</td>
+                            <td>{{ d.status }}</td>
+                            <td>{{ d.chunk_count }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-secondary">No documents.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

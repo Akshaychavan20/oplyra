@@ -1,0 +1,77 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Audit Logs · Platform Admin{% endblock %}
+{% block page_title %}Audit Logs{% endblock %}
+{% block content %}
+<div class="glass-card pa-toolbar mb-3">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-8">
+            <label class="form-label-custom small mb-1" for="audit-q">Search security / entity events</label>
+            <input type="search" name="q" id="audit-q" value="{{ data.q }}" class="form-control form-control-custom" placeholder="action or entity type">
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary-custom w-100">Search</button>
+        </div>
+    </form>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="glass-card pa-panel">
+            <h3>Security / audit events</h3>
+            <div class="table-responsive">
+                <table class="table table-custom pa-table mb-0">
+                    <thead><tr><th>When</th><th>User</th><th>Action</th><th>Entity</th></tr></thead>
+                    <tbody>
+                        {% for a in data.audit %}
+                        <tr>
+                            <td>{{ a.created_at.strftime('%m-%d %H:%M') if a.created_at else '—' }}</td>
+                            <td>{{ a.user_id or '—' }}</td>
+                            <td>{{ a.action_type }}</td>
+                            <td>{{ a.entity_type }} #{{ a.entity_id }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-secondary">No audit rows.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="glass-card pa-panel mb-3">
+            <h3>User events</h3>
+            <ul class="pa-list">
+                {% for a in data.analytics %}
+                <li><span>{{ a.activity_type }} · u{{ a.user_id }}</span><strong>{{ a.created_at.strftime('%m-%d %H:%M') if a.created_at else '' }}</strong></li>
+                {% else %}
+                <li><span class="text-secondary">No analytics events</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="glass-card pa-panel mb-3">
+            <h3>AI events</h3>
+            <ul class="pa-list">
+                {% for a in data.ai_events[:15] %}
+                <li><span>{{ a.provider }} / {{ a.model_used }}</span><strong>{{ a.status }}</strong></li>
+                {% else %}
+                <li><span class="text-secondary">No AI logs</span><strong></strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="glass-card pa-panel">
+            <h3>System / agent / tool</h3>
+            <ul class="pa-list">
+                {% for a in data.agent_events[:8] %}
+                <li><span>agent · {{ a.level if a.level is defined else a.id }}</span><strong>{{ a.created_at.strftime('%m-%d %H:%M') if a.created_at else '' }}</strong></li>
+                {% endfor %}
+                {% for a in data.tool_events[:8] %}
+                <li><span>tool · {{ a.id }}</span><strong>{{ a.created_at.strftime('%m-%d %H:%M') if a.created_at else '' }}</strong></li>
+                {% endfor %}
+                {% if not data.agent_events and not data.tool_events %}
+                <li><span class="text-secondary">No system logs</span><strong></strong></li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

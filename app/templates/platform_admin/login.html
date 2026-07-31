@@ -1,0 +1,38 @@
+{% extends 'platform_admin/base_admin_auth.html' %}
+{% block title %}Sign in · Oplyra Internal Admin{% endblock %}
+{% block content %}
+<div class="pa-login">
+        <div class="pa-login-card glass-card">
+            <div class="pa-login-brand">
+                {{ oplyra_logo('auth', url_for('platform_admin.login')) }}
+                <span class="pa-badge">Internal</span>
+            </div>
+            <h1 class="pa-login-title">Platform Admin</h1>
+            <p class="pa-login-sub text-secondary">Staff access only. Customer accounts cannot sign in here.</p>
+
+        {% if error %}
+        <div class="pa-flash pa-flash-danger mb-3">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('platform_admin.login', next=next) }}" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            <div class="mb-3">
+                <label class="form-label-custom" for="admin-email">Work email</label>
+                <input type="email" class="form-control form-control-custom" id="admin-email"
+                       name="email" required autocomplete="username" autofocus>
+            </div>
+            <div class="mb-3">
+                <label class="form-label-custom" for="admin-password">Password</label>
+                <input type="password" class="form-control form-control-custom" id="admin-password"
+                       name="password" required autocomplete="current-password">
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" value="1" id="admin-remember" name="remember">
+                <label class="form-check-label text-secondary" for="admin-remember">Remember this device</label>
+            </div>
+            <button type="submit" class="btn btn-primary-custom w-100">Sign in</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends 'platform_admin/base_admin.html' %}
+{% block title %}Users · Platform Admin{% endblock %}
+{% block page_title %}Users{% endblock %}
+{% block page_subtitle %}
+<p>Search, filter, and manage customer accounts across the platform.</p>
+{% endblock %}
+{% block page_actions %}
+<a href="{{ url_for('platform_admin.organizations') }}" class="btn btn-secondary-custom btn-sm"><i class="bi bi-building me-1"></i>Organizations</a>
+{% endblock %}
+{% block content %}
+
+<div class="glass-card pa-toolbar">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label-custom small mb-1" for="user-q">Search</label>
+            <input type="search" name="q" id="user-q" value="{{ search }}" class="form-control form-control-custom" placeholder="Email or username">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label-custom small mb-1" for="user-status">Status</label>
+            <select name="status" id="user-status" class="form-select form-control-custom">
+                <option value="all" {% if status == 'all' %}selected{% endif %}>All</option>
+                <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                <option value="suspended" {% if status == 'suspended' %}selected{% endif %}>Suspended</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary-custom w-100">Filter</button>
+        </div>
+        <div class="col-md-2">
+            <a href="{{ url_for('platform_admin.users') }}" class="btn btn-secondary-custom w-100">Clear</a>
+        </div>
+    </form>
+</div>
+
+<div class="glass-card pa-table-shell">
+    <div class="table-responsive">
+        <table class="table table-custom mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Org / plan</th>
+                    <th>Clients</th>
+                    <th>AI usage</th>
+                    <th>Status</th>
+                    <th>Joined</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td class="text-secondary">{{ row.user.id }}</td>
+                    <td>
+                        <div class="fw-semibold">{{ row.user.username }}</div>
+                        <div class="text-secondary small">{{ row.user.email }}</div>
+                    </td>
+                    <td>
+                        {% if row.org %}
+                            {{ row.org.name }}
+                            <span class="pa-chip">{{ row.org.plan_tier or 'free' }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>{{ row.clients }}</td>
+                    <td>{{ row.usage }}</td>
+                    <td>
+                        {% if row.suspended %}
+                        <span class="pa-chip pa-chip-warn">Suspended</span>
+                        {% else %}
+                        <span class="pa-chip pa-chip-ok">Active</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-secondary">{{ row.user.created_at.strftime('%Y-%m-%d') if row.user.created_at else '—' }}</td>
+                    <td class="text-end">
+                        <a class="btn btn-secondary-custom btn-sm" href="{{ url_for('platform_admin.user_detail', user_id=row.user.id) }}">View</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8">
+                        <div class="pa-empty empty-state">
+                            <div class="empty-state-icon"><i class="bi bi-people"></i></div>
+                            <div class="empty-state-title">No users match</div>
+                            <p class="empty-state-text mb-0">Try a different search or clear filters.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if pagination and pagination.pages > 1 %}
+    <div class="pa-table-foot">
+        <span class="text-secondary small">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+        <nav aria-label="Users pagination">
+            <ul class="pagination pagination-sm mb-0">
+                {% for p in pagination.iter_pages() %}
+                    {% if p %}
+                    <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('platform_admin.users', page=p, q=search, status=status) }}">{{ p }}</a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,119 @@
+{# AI Studio — primary freelancer workflow surface (backed by Agent Framework APIs) #}
+<div id="panel-agents" class="tab-panel tab-hidden">
+    <div class="studio-hub">
+        <div class="studio-hub-header mb-4">
+            <div>
+                <h2 class="text-white mb-1"><i class="bi bi-stars text-indigo me-2"></i>AI Studio</h2>
+                <p class="text-secondary mb-0" style="font-size: 0.8rem;">
+                    Describe a goal, attach knowledge, choose an output — then run. Keep it simple.
+                </p>
+            </div>
+            <a href="{{ url_for('content.content_status') }}" class="btn btn-secondary-custom btn-sm">
+                <i class="bi bi-pencil-square me-1"></i>Write content
+            </a>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-5">
+                <div class="glass-card studio-run-card p-3 h-100">
+                    <h6 class="text-white mb-3">Workflow setup</h6>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-1" for="agents-goal">Goal</label>
+                        <textarea id="agents-goal" class="form-control form-control-custom" rows="4"
+                            placeholder="e.g. Launch LinkedIn ads + SEO blogs for a freelance marketer SaaS"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-1">Knowledge sources</label>
+                        <div class="studio-chip-row text-secondary small" id="studio-knowledge-hint">
+                            Uses your Knowledge Center when available.
+                            <a href="#knowledge" class="text-indigo ms-1">Manage knowledge</a>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-1">Connected tools</label>
+                        <div class="studio-chip-row text-secondary small" id="studio-tools-hint">
+                            Tools run automatically when the workflow needs them.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-1">Output type</label>
+                        <div class="agents-mode-toggle" role="group" aria-label="Output type">
+                            <button type="button" class="agents-mode-btn active" data-mode="auto">Smart workflow</button>
+                            <button type="button" class="agents-mode-btn" data-mode="single">Specialist</button>
+                            <button type="button" class="agents-mode-btn" data-mode="workflow">Saved workflow</button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 d-none" id="agents-select-wrap">
+                        <label class="form-label text-secondary small mb-1" for="agents-select">Specialist</label>
+                        <select id="agents-select" class="form-select form-control-custom"></select>
+                    </div>
+
+                    <div class="mb-3 d-none" id="agents-workflow-wrap">
+                        <label class="form-label text-secondary small mb-1" for="agents-workflow-select">Workflow</label>
+                        <select id="agents-workflow-select" class="form-select form-control-custom"></select>
+                    </div>
+
+                    <details class="studio-advanced mb-3">
+                        <summary class="text-secondary small">Advanced settings</summary>
+                        <div class="pt-2">
+                            <label class="form-label text-secondary small mb-1" for="agents-brand-voice">Brand voice</label>
+                            <input type="text" id="agents-brand-voice" class="form-control form-control-custom"
+                                placeholder="Confident, clear, no jargon…">
+                        </div>
+                    </details>
+
+                    <button type="button" class="btn btn-primary-custom w-100" id="agents-run-btn">
+                        <i class="bi bi-play-fill me-1"></i>Run AI Workflow
+                    </button>
+                    <button type="button" class="d-none" id="agents-auto-btn" aria-hidden="true"></button>
+                    <div id="agents-run-error" class="text-danger small mt-2 d-none"></div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="glass-card p-3 mb-3">
+                    <h6 class="text-white mb-3">Execution progress</h6>
+                    <div id="agents-progress" class="agents-progress">
+                        <div class="agents-progress-empty text-secondary small">
+                            Set a goal and run a workflow to see live progress.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                        <h6 class="text-white mb-0">Generated output</h6>
+                        <div id="studio-meta" class="studio-meta d-flex flex-wrap gap-1">
+                            <span id="studio-status" class="badge bg-secondary bg-opacity-25 text-secondary" style="font-size:0.65rem;">Ready</span>
+                            <span id="studio-model" class="badge bg-secondary bg-opacity-25 text-secondary d-none" style="font-size:0.65rem;"></span>
+                            <span id="studio-knowledge" class="badge bg-secondary bg-opacity-25 text-secondary d-none" style="font-size:0.65rem;"></span>
+                            <span id="studio-tools" class="badge bg-secondary bg-opacity-25 text-secondary d-none" style="font-size:0.65rem;"></span>
+                            <span id="studio-time" class="badge bg-secondary bg-opacity-25 text-secondary d-none" style="font-size:0.65rem;"></span>
+                            <span id="studio-quality" class="badge bg-secondary bg-opacity-25 text-secondary d-none" style="font-size:0.65rem;"></span>
+                        </div>
+                    </div>
+                    <pre id="agents-output" class="agents-output mb-0">Results will appear here.</pre>
+                    <span id="agents-tokens" class="d-none" aria-hidden="true"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <h6 class="text-white mb-3">Workflow preview</h6>
+            <div id="agents-grid" class="agents-grid"></div>
+        </div>
+
+        <div class="mt-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="text-white mb-0">Recent AI workflows</h6>
+                <button type="button" class="btn btn-secondary-custom btn-sm" id="agents-refresh-history">Refresh</button>
+            </div>
+            <div id="agents-history" class="agents-history"></div>
+        </div>
+    </div>
+</div>
